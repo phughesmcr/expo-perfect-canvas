@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Production
+dist/
+build/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+*.swp
+*.swo
+
+# Testing
+coverage/
+.nyc_output/
+
+# Package files
+*.tgz
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# npm
+.npm
+.npmrc
+
+# Temporary files
+tmp/
+temp/
+*.tmp

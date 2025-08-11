@@ -1,0 +1,52 @@
+{
+  "name": "expo-perfect-canvas",
+  "version": "1.0.0",
+  "description": "High-performance React Native drawing canvas with perfect-freehand and haptic feedback",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "author": "Jan Horak",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hokyjack/expo-perfect-canvas.git"
+  },
+  "homepage": "https://github.com/Hokyjack/expo-perfect-canvas#readme",
+  "bugs": {
+    "url": "https://github.com/Hokyjack/expo-perfect-canvas/issues"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "canvas",
+    "drawing",
+    "sketch",
+    "perfect-freehand",
+    "haptics",
+    "skia"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@shopify/react-native-skia": ">=2.2.0",
+    "expo-haptics": "*",
+    "perfect-freehand": "^1.2.0",
+    "react": ">=19.0.0",
+    "react-native": ">=0.79.0",
+    "react-native-gesture-handler": ">=2.24.0",
+    "react-native-reanimated": ">=3.17.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-native": "^0.72.0",
+    "typescript": "^5.0.0"
+  }
+}
