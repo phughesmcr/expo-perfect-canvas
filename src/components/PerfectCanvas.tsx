@@ -10,6 +10,7 @@ import React, {
 import {
   Canvas,
   Path,
+  Group,
   useCanvasRef,
   ImageFormat,
   Skia,
@@ -19,8 +20,7 @@ import {
   Gesture,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
-import Animated, {
-  useAnimatedStyle,
+import {
   useSharedValue,
   runOnJS,
   useDerivedValue,
@@ -135,32 +135,35 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       
       currentPathPoints.current.push(point);
       
-      // Calculate velocity for enhanced haptic feedback
+      // Throttle haptic feedback to improve performance
       if (hapticsEnabled && lastDrawPoint.current) {
         const now = Date.now();
         const deltaTime = now - lastDrawTime.current;
         
-        if (deltaTime > 0) {
+        // Only trigger haptics every 20ms to reduce overhead
+        if (deltaTime > 20) {
           const dx = point[0] - lastDrawPoint.current[0];
           const dy = point[1] - lastDrawPoint.current[1];
           const distance = Math.sqrt(dx * dx + dy * dy);
-          const velocity = (distance / deltaTime) * 1000; // pixels per second
-          const pressure = point[2] || 0.5; // Use pressure if available
+          const velocity = (distance / deltaTime) * 1000;
+          const pressure = point[2] || 0.5;
           
-          // Trigger enhanced drawing haptics
           triggerDrawingHaptic(velocity, pressure);
+          lastDrawTime.current = now;
         }
         
-        lastDrawTime.current = now;
         lastDrawPoint.current = point;
       }
       
       // Process points and update current path
-      const svgPath = processPoints(
-        currentPathPoints.current,
-        finalStrokeOptions
-      );
-      currentPathShared.value = svgPath;
+      // Only update if we have enough points to prevent jumps
+      if (currentPathPoints.current.length > 1) {
+        const svgPath = processPoints(
+          currentPathPoints.current,
+          finalStrokeOptions
+        );
+        currentPathShared.value = svgPath;
+      }
     }, [hapticsEnabled, triggerDrawingHaptic, finalStrokeOptions]);
 
     const handleDrawEnd = useCallback((points: Point[]) => {
@@ -228,23 +231,16 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       onPathComplete,
     ]);
 
-    // Drawing gesture
-    const { gesture: drawingGesture } = useDrawingGesture({
-      onDrawStart: handleDrawStart,
-      onDrawUpdate: handleDrawUpdate,
-      onDrawEnd: handleDrawEnd,
-      enablePressure: true,
-      enableVelocity: true,
-      minDistance: 0.5, // Lower threshold for more frequent updates
-    });
-
-    // Zoom gesture
+    // Zoom gesture - always call the hook
     const {
       pinchGesture,
       panGesture,
       scale,
       translation,
       reset: resetZoom,
+      setScale,
+      isPinching,
+      isPanning,
     } = useZoomGesture({
       enabled: enableZoom,
       minScale: zoomRange[0],
@@ -252,29 +248,44 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       onScaleChange: onZoomChange,
     });
 
-    // Combine gestures
+    // Drawing gesture - pass zoom values only when zoom is enabled
+    const { gesture: drawingGesture } = useDrawingGesture({
+      onDrawStart: handleDrawStart,
+      onDrawUpdate: handleDrawUpdate,
+      onDrawEnd: handleDrawEnd,
+      enablePressure: true,
+      enableVelocity: true,
+      minDistance: 0.5,
+      scale: enableZoom ? scale : undefined,
+      translation: enableZoom ? translation : undefined,
+      isPinching: enableZoom ? isPinching : undefined,
+      isPanning: enableZoom ? isPanning : undefined,
+    });
+
+
+    // Combine gestures - only pan and draw (no pinch zoom)
     const composedGesture = useMemo(() => {
       if (enableZoom) {
+        // Only pan and draw gestures (pinch zoom disabled)
         return Gesture.Simultaneous(
           drawingGesture,
-          pinchGesture,
           panGesture
         );
       }
       return drawingGesture;
-    }, [enableZoom, drawingGesture, pinchGesture, panGesture]);
+    }, [enableZoom, drawingGesture, panGesture]);
 
-    // Animated styles for zoom
-    const animatedStyle = useAnimatedStyle(() => {
-      if (!enableZoom) return {};
+    // Create derived values for transformation with proper dependencies
+    const transformMatrix = useDerivedValue(() => {
+      if (!enableZoom || !scale || !translation) {
+        return Skia.Matrix();
+      }
       
-      return {
-        transform: [
-          { translateX: translation.value.x },
-          { translateY: translation.value.y },
-          { scale: scale.value },
-        ],
-      };
+      const matrix = Skia.Matrix();
+      // Simple: translate then scale
+      matrix.translate(translation.value.x, translation.value.y);
+      matrix.scale(scale.value, scale.value);
+      return matrix;
     });
 
     // Imperative handle
@@ -317,6 +328,16 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
         historyManager.current.clear();
         if (enableZoom) {
           resetZoom();
+        }
+      },
+      resetZoom: () => {
+        if (enableZoom && resetZoom) {
+          resetZoom();
+        }
+      },
+      setZoom: (zoom: number) => {
+        if (enableZoom && setScale) {
+          setScale(zoom, true);
         }
       },
       getSnapshot: async () => {
@@ -385,9 +406,10 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       resetZoom,
     ]);
 
-    // Memoized paths rendering
-    const renderedPaths = useMemo(() => 
-      paths.map((path) => (
+    // Render paths with transformation
+    const renderedPaths = useMemo(() => {
+      // We need to use a Group with matrix transformation
+      return paths.map((path) => (
         <Path
           key={path.id}
           path={path.svgPath}
@@ -395,35 +417,35 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
           style="fill"
           opacity={path.opacity || 1}
         />
-      )),
-      [paths]
-    );
+      ));
+    }, [paths]);
 
     return (
       <GestureHandlerRootView style={[styles.container, style]}>
         <GestureDetector gesture={composedGesture}>
           <View style={styles.canvasContainer}>
-            <Animated.View style={[styles.canvas, animatedStyle]}>
               <Canvas
                 ref={canvasRef}
                 style={[styles.canvas, { backgroundColor: currentBackgroundColor }]}
                 mode={renderMode}
               >
-                {/* Rendered paths */}
-                {renderedPaths}
-                
-                {/* Current drawing path */}
-                <Path
-                  path={currentPathShared}
-                  color={strokeColorShared}
-                  style="fill"
-                  opacity={currentStrokeOpacity}
-                />
+                {/* Apply transformation to all content */}
+                <Group matrix={transformMatrix}>
+                  {/* Rendered paths */}
+                  {renderedPaths}
+                  
+                  {/* Current drawing path */}
+                  <Path
+                    path={currentPathShared}
+                    color={strokeColorShared}
+                    style="fill"
+                    opacity={currentStrokeOpacity}
+                  />
+                </Group>
                 
                 {/* Children (overlays, etc.) */}
                 {children}
               </Canvas>
-            </Animated.View>
           </View>
         </GestureDetector>
       </GestureHandlerRootView>

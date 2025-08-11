@@ -45,6 +45,8 @@ export interface PerfectCanvasRef {
   redo: (steps?: number) => void;
   clear: () => void;
   reset: () => void;
+  resetZoom: () => void;
+  setZoom: (zoom: number) => void;
   getSnapshot: () => Promise<SkImage | undefined>;
   toBase64: (format?: ImageFormat, quality?: number) => Promise<string | undefined>;
   toSvg: (width?: number, height?: number, backgroundColor?: string) => string;

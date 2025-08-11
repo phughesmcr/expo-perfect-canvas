@@ -15,6 +15,10 @@ interface DrawingGestureConfig {
   enablePressure?: boolean;
   enableVelocity?: boolean;
   minDistance?: number;
+  scale?: SharedValue<number>;
+  translation?: SharedValue<{ x: number; y: number }>;
+  isPinching?: SharedValue<boolean>;
+  isPanning?: SharedValue<boolean>;
 }
 
 export function useDrawingGesture(config: DrawingGestureConfig) {
@@ -25,6 +29,10 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
     enablePressure = true,
     enableVelocity = true,
     minDistance = 1,
+    scale,
+    translation,
+    isPinching,
+    isPanning,
   } = config;
 
   const currentPath = useSharedValue<Point[]>([]);
@@ -34,10 +42,21 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
 
   const handleStart = useCallback((x: number, y: number, pressure?: number) => {
     'worklet';
+    
+    // Convert screen coordinates to world coordinates
+    // Simple: just reverse the transformation
+    let transformedX = x;
+    let transformedY = y;
+    
+    if (scale && translation) {
+      transformedX = (x - translation.value.x) / scale.value;
+      transformedY = (y - translation.value.y) / scale.value;
+    }
+    
     const now = Date.now();
     const point: Point = enablePressure && pressure !== undefined 
-      ? [x, y, pressure] 
-      : [x, y];
+      ? [transformedX, transformedY, pressure] 
+      : [transformedX, transformedY];
     
     currentPath.value = [point];
     lastPoint.value = point;
@@ -47,19 +66,30 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
     if (onDrawStart) {
       runOnJS(onDrawStart)(point);
     }
-  }, [enablePressure, onDrawStart]);
+  }, [enablePressure, onDrawStart, scale, translation]);
 
   const handleUpdate = useCallback((x: number, y: number, pressure?: number) => {
     'worklet';
+    
     if (!isDrawing.value || !lastPoint.value) return;
+
+    // Convert screen coordinates to world coordinates
+    // Simple: just reverse the transformation
+    let transformedX = x;
+    let transformedY = y;
+    
+    if (scale && translation) {
+      transformedX = (x - translation.value.x) / scale.value;
+      transformedY = (y - translation.value.y) / scale.value;
+    }
 
     const now = Date.now();
     const deltaTime = now - lastTime.value;
     
     // Calculate distance from last point
     const distance = Math.sqrt(
-      Math.pow(x - lastPoint.value[0], 2) + 
-      Math.pow(y - lastPoint.value[1], 2)
+      Math.pow(transformedX - lastPoint.value[0], 2) + 
+      Math.pow(transformedY - lastPoint.value[1], 2)
     );
 
     // Skip if movement is too small
@@ -75,8 +105,8 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
     }
 
     const point: Point = enablePressure && finalPressure !== undefined
-      ? [x, y, finalPressure]
-      : [x, y];
+      ? [transformedX, transformedY, finalPressure]
+      : [transformedX, transformedY];
 
     currentPath.value = [...currentPath.value, point];
     lastPoint.value = point;
@@ -85,7 +115,7 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
     if (onDrawUpdate) {
       runOnJS(onDrawUpdate)(point);
     }
-  }, [enablePressure, enableVelocity, minDistance, onDrawUpdate]);
+  }, [enablePressure, enableVelocity, minDistance, onDrawUpdate, scale, translation]);
 
   const handleEnd = useCallback(() => {
     'worklet';
@@ -103,14 +133,18 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
   }, [onDrawEnd]);
 
   const panGesture = Gesture.Pan()
-    .minDistance(0) // Allow immediate recognition for taps
+    .minDistance(0)
+    .maxPointers(1)
     .onBegin((e) => {
+      'worklet';
       handleStart(e.x, e.y);
     })
     .onUpdate((e) => {
+      'worklet';
       handleUpdate(e.x, e.y);
     })
-    .onFinalize(() => {
+    .onEnd(() => {
+      'worklet';
       handleEnd();
     });
 
