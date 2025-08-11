@@ -79,11 +79,13 @@ export interface PerfectCanvasProps {
   simplifyPaths?: boolean;
   simplifyTolerance?: number;
   renderMode?: 'continuous' | 'onDemand';
-  onDrawStart?: () => void;
+  onDrawStart?: (point?: Point) => void;
+  onDrawUpdate?: (point: Point) => void;
   onDrawEnd?: (path: PathData) => void;
   onPathComplete?: (path: PathData) => void;
   onStateChange?: (state: DrawingState) => void;
   onZoomChange?: (scale: number) => void;
+  onTranslateChange?: (x: number, y: number) => void;
   onRotationChange?: (rotation: number) => void;
   children?: React.ReactNode;
   debug?: boolean;

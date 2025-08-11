@@ -39,6 +39,7 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
   const lastPoint = useSharedValue<Point | null>(null);
   const lastTime = useSharedValue<number>(0);
   const isDrawing = useSharedValue<boolean>(false);
+  const multiTouchEndTime = useSharedValue<number>(0);
 
   const handleStart = useCallback((x: number, y: number, pressure?: number) => {
     'worklet';
@@ -62,6 +63,9 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
     lastPoint.value = point;
     lastTime.value = now;
     isDrawing.value = true;
+    
+    // Clear the multi-touch end time since we're successfully drawing
+    multiTouchEndTime.value = 0;
 
     if (onDrawStart) {
       runOnJS(onDrawStart)(point);
@@ -137,15 +141,49 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
     .maxPointers(1)
     .onBegin((e) => {
       'worklet';
+      
+      // Check if we recently ended a multi-touch gesture
+      // This prevents accidental drawing when lifting fingers
+      const now = Date.now();
+      if (isPanning && isPanning.value) {
+        multiTouchEndTime.value = now;
+        return;
+      }
+      if (isPinching && isPinching.value) {
+        multiTouchEndTime.value = now;
+        return;
+      }
+      
+      // Don't start drawing if we just finished a multi-touch gesture (within 100ms)
+      if (now - multiTouchEndTime.value < 100) {
+        return;
+      }
+      
       handleStart(e.x, e.y);
     })
     .onUpdate((e) => {
       'worklet';
+      
+      // Don't update if we're in a multi-touch gesture
+      if (isPanning && isPanning.value) return;
+      if (isPinching && isPinching.value) return;
+      
       handleUpdate(e.x, e.y);
     })
     .onEnd(() => {
       'worklet';
       handleEnd();
+    })
+    .onFinalize(() => {
+      'worklet';
+      
+      // Track when multi-touch gestures end
+      if (isPanning && !isPanning.value && multiTouchEndTime.value === 0) {
+        multiTouchEndTime.value = Date.now();
+      }
+      if (isPinching && !isPinching.value && multiTouchEndTime.value === 0) {
+        multiTouchEndTime.value = Date.now();
+      }
     });
 
   return {

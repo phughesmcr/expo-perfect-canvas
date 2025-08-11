@@ -63,10 +63,12 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       simplifyTolerance = 1,
       renderMode = 'continuous',
       onDrawStart,
+      onDrawUpdate,
       onDrawEnd,
       onPathComplete,
       onStateChange,
       onZoomChange,
+      onTranslateChange,
       onRotationChange,
       children,
       debug = false,
@@ -86,6 +88,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     const [currentBackgroundColor, setCurrentBackgroundColor] = useState(backgroundColor);
     const [hapticsEnabled, setHapticsEnabled] = useState(enableHaptics);
     const [currentHapticStyle, setCurrentHapticStyle] = useState(hapticStyle);
+    const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
     // Refs
     const canvasRef = useCanvasRef();
@@ -127,7 +130,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
         triggerHaptic(0.7);
       }
       
-      onDrawStart?.();
+      onDrawStart?.(point);
     }, [hapticsEnabled, triggerHaptic, onDrawStart]);
 
     const handleDrawUpdate = useCallback((point: Point) => {
@@ -164,7 +167,10 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
         );
         currentPathShared.value = svgPath;
       }
-    }, [hapticsEnabled, triggerDrawingHaptic, finalStrokeOptions]);
+      
+      // Call onDrawUpdate callback
+      onDrawUpdate?.(point);
+    }, [hapticsEnabled, triggerDrawingHaptic, finalStrokeOptions, onDrawUpdate]);
 
     const handleDrawEnd = useCallback((points: Point[]) => {
       // Allow single point (dot) by duplicating it
@@ -202,11 +208,16 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       setPaths(prev => {
         const newPaths = [...prev, newPath];
         historyManager.current.push(newPaths);
+        
+        // Clear current path after state update to avoid blink
+        requestAnimationFrame(() => {
+          currentPathShared.value = '';
+        });
+        
         return newPaths;
       });
 
-      // Clear current path
-      currentPathShared.value = '';
+      // Clear other drawing state
       currentPathPoints.current = [];
       isDrawingRef.current = false;
       lastDrawPoint.current = null;
@@ -233,6 +244,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
 
     // Zoom gesture - always call the hook
     const {
+      combinedGesture,
       pinchGesture,
       panGesture,
       scale,
@@ -246,6 +258,9 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       minScale: zoomRange[0],
       maxScale: zoomRange[1],
       onScaleChange: onZoomChange,
+      onTranslateChange: onTranslateChange,
+      canvasWidth: canvasSize.width || undefined,
+      canvasHeight: canvasSize.height || undefined,
     });
 
     // Drawing gesture - pass zoom values only when zoom is enabled
@@ -255,7 +270,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       onDrawEnd: handleDrawEnd,
       enablePressure: true,
       enableVelocity: true,
-      minDistance: 0.5,
+      minDistance: 0.0,
       scale: enableZoom ? scale : undefined,
       translation: enableZoom ? translation : undefined,
       isPinching: enableZoom ? isPinching : undefined,
@@ -263,17 +278,17 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     });
 
 
-    // Combine gestures - only pan and draw (no pinch zoom)
+    // Combine gestures - drawing and zoom/pan
     const composedGesture = useMemo(() => {
       if (enableZoom) {
-        // Only pan and draw gestures (pinch zoom disabled)
+        // Combine drawing with the unified pan+zoom gesture
         return Gesture.Simultaneous(
           drawingGesture,
-          panGesture
+          combinedGesture
         );
       }
       return drawingGesture;
-    }, [enableZoom, drawingGesture, panGesture]);
+    }, [enableZoom, drawingGesture, combinedGesture]);
 
     // Create derived values for transformation with proper dependencies
     const transformMatrix = useDerivedValue(() => {
@@ -423,7 +438,13 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     return (
       <GestureHandlerRootView style={[styles.container, style]}>
         <GestureDetector gesture={composedGesture}>
-          <View style={styles.canvasContainer}>
+          <View 
+            style={styles.canvasContainer}
+            onLayout={(e) => {
+              const { width, height } = e.nativeEvent.layout;
+              setCanvasSize({ width, height });
+            }}
+          >
               <Canvas
                 ref={canvasRef}
                 style={[styles.canvas, { backgroundColor: currentBackgroundColor }]}
