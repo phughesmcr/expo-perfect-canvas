@@ -1,6 +1,6 @@
 {
   "name": "expo-perfect-canvas",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "High-performance React Native drawing canvas with perfect-freehand and haptic feedback",
   "main": "src/index.ts",
   "types": "src/index.ts",
