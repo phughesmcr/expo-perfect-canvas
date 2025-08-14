@@ -29,6 +29,10 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
     canvasWidth = screenWidth,
     canvasHeight = screenHeight,
   } = config;
+  
+  // Throttle flags to prevent too many JS callbacks
+  const lastCallbackTime = useSharedValue(0);
+  const callbackThrottle = 16; // ~60fps max
 
   // Main state - this is the source of truth
   const scale = useSharedValue(1);
@@ -56,7 +60,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
     .onStart((e) => {
       'worklet';
       
-      console.log(`[PINCH] Started - focal: (${e.focalX.toFixed(1)}, ${e.focalY.toFixed(1)})`);
+      // Debug logging removed - was causing UI thread blocking
       
       savedScale.value = scale.value;
       savedTranslation.value = { ...translation.value };
@@ -103,7 +107,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
       const now = Date.now();
       
       if (focalJumped && (scaleStable || atScaleLimit)) {
-        console.log(`[PINCH] Focal jump detected! Delta: (${deltaX.toFixed(1)}, ${deltaY.toFixed(1)}) - ignoring`);
+        // Focal jump detected - ignoring
         consecutiveJumps.value++;
         jumpDetectedTime.value = now;
         // Use the last valid focal point instead
@@ -113,7 +117,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
         // If we recently detected jumps, be more conservative about accepting new focal points
         const smallDelta = deltaX < 20 && deltaY < 20;
         if (!smallDelta) {
-          console.log(`[PINCH] Still recovering from jump - ignoring focal change`);
+          // Still recovering from jump - ignoring focal change
           focalX = lastValidFocal.value.x;
           focalY = lastValidFocal.value.y;
         } else {
@@ -129,7 +133,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
       
       lastScale.value = e.scale;
       
-      console.log(`[PINCH] Update - scale: ${e.scale.toFixed(3)}, focal: (${focalX.toFixed(1)}, ${focalY.toFixed(1)})`);
+      // Update scale and focal point
       
       // Keep the anchor point at the focal point
       translation.value = {
@@ -139,17 +143,29 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
       
       scale.value = newScale;
       
-      if (onScaleChange) {
-        runOnJS(onScaleChange)(newScale);
-      }
-      if (onTranslateChange) {
-        runOnJS(onTranslateChange)(translation.value.x, translation.value.y);
+      // Throttle callbacks to prevent performance issues
+      if (now - lastCallbackTime.value > callbackThrottle) {
+        lastCallbackTime.value = now;
+        if (onScaleChange) {
+          runOnJS(onScaleChange)(newScale);
+        }
+        if (onTranslateChange) {
+          runOnJS(onTranslateChange)(translation.value.x, translation.value.y);
+        }
       }
     })
     .onEnd(() => {
       'worklet';
-      console.log(`[PINCH] Ended`);
+      // Pinch ended
       isPinching.value = false;
+      
+      // Final callback to sync state
+      if (onScaleChange) {
+        runOnJS(onScaleChange)(scale.value);
+      }
+      if (onTranslateChange) {
+        runOnJS(onTranslateChange)(translation.value.x, translation.value.y);
+      }
     });
 
   // Pan gesture for pure panning (no zoom)
@@ -160,7 +176,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
     .averageTouches(true)
     .onStart(() => {
       'worklet';
-      console.log(`[PAN] Started`);
+      // Pan started
       savedTranslation.value = { ...translation.value };
       isPanning.value = true;
     })
@@ -169,11 +185,11 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
       
       // Don't update translation if pinch is active - let pinch handle it
       if (isPinching.value) {
-        console.log(`[PAN] Update skipped - pinch active`);
+        // Update skipped - pinch active
         return;
       }
       
-      console.log(`[PAN] Update - translation: (${e.translationX.toFixed(1)}, ${e.translationY.toFixed(1)})`);
+      // Update translation
       
       // Simple pan - just add the translation
       translation.value = {
@@ -181,14 +197,22 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
         y: savedTranslation.value.y + e.translationY
       };
       
-      if (onTranslateChange) {
+      // Throttle callback
+      const nowPan = Date.now();
+      if (onTranslateChange && nowPan - lastCallbackTime.value > callbackThrottle) {
+        lastCallbackTime.value = nowPan;
         runOnJS(onTranslateChange)(translation.value.x, translation.value.y);
       }
     })
     .onEnd(() => {
       'worklet';
-      console.log(`[PAN] Ended`);
+      // Pan ended
       isPanning.value = false;
+      
+      // Final callback to sync state
+      if (onTranslateChange) {
+        runOnJS(onTranslateChange)(translation.value.x, translation.value.y);
+      }
     });
 
   // Use Simultaneous
