@@ -4,7 +4,7 @@ export function getSvgPathFromStroke(stroke: number[][]): string {
   if (!stroke.length) return "";
 
   const d = stroke.reduce(
-    (acc, [x0, y0], i, arr) => {
+    (acc, [x0, y0], i, arr): (string | number)[] => {
       const [x1, y1] = arr[(i + 1) % arr.length];
       acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
       return acc;
@@ -45,12 +45,12 @@ export function parseSvgPath(svgPath: string): number[][] {
   const commands = svgPath.match(
     /[MLHVCSQTAZmlhvcsqtaz][^MLHVCSQTAZmlhvcsqtaz]*/g
   );
-  
+
   if (!commands) return points;
-  
+
   let currentX = 0;
   let currentY = 0;
-  
+
   commands.forEach((cmd): void => {
     const type = cmd[0];
     const args = cmd
@@ -58,7 +58,7 @@ export function parseSvgPath(svgPath: string): number[][] {
       .trim()
       .split(/[\s,]+/)
       .map(Number);
-    
+
     switch (type) {
       case "M":
       case "L":
@@ -74,6 +74,6 @@ export function parseSvgPath(svgPath: string): number[][] {
         break;
     }
   });
-  
+
   return points;
 }

@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { Gesture } from "react-native-gesture-handler";
+import { Gesture, PanGesture } from "react-native-gesture-handler";
 import {
   runOnJS,
   useSharedValue,
@@ -21,7 +21,11 @@ interface DrawingGestureConfig {
   isPanning?: SharedValue<boolean>;
 }
 
-export function useDrawingGesture(config: DrawingGestureConfig) {
+export function useDrawingGesture(config: DrawingGestureConfig): {
+  gesture: PanGesture;
+  currentPath: SharedValue<Point[]>;
+  isDrawing: SharedValue<boolean>;
+} {
   const {
     onDrawStart,
     onDrawUpdate,
@@ -42,7 +46,7 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
   const multiTouchEndTime = useSharedValue<number>(0);
 
   const handleStart = useCallback(
-    (x: number, y: number, pressure?: number) => {
+    (x: number, y: number, pressure?: number): void => {
       "worklet";
 
       // Convert screen coordinates to world coordinates
@@ -77,7 +81,7 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
   );
 
   const handleUpdate = useCallback(
-    (x: number, y: number, pressure?: number) => {
+    (x: number, y: number, pressure?: number): void => {
       "worklet";
 
       if (!isDrawing.value || !lastPoint.value) return;
@@ -136,7 +140,7 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
     ]
   );
 
-  const handleEnd = useCallback(() => {
+  const handleEnd = useCallback((): void => {
     "worklet";
     if (!isDrawing.value) return;
 
@@ -154,7 +158,7 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
   const panGesture = Gesture.Pan()
     .minDistance(0)
     .maxPointers(1)
-    .onBegin((e) => {
+    .onBegin((e): void => {
       "worklet";
 
       // Check if we recently ended a multi-touch gesture
@@ -176,7 +180,7 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
 
       handleStart(e.x, e.y);
     })
-    .onUpdate((e) => {
+    .onUpdate((e): void => {
       "worklet";
 
       // Don't update if we're in a multi-touch gesture
@@ -185,11 +189,11 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
 
       handleUpdate(e.x, e.y);
     })
-    .onEnd(() => {
+    .onEnd((): void => {
       "worklet";
       handleEnd();
     })
-    .onFinalize(() => {
+    .onFinalize((): void => {
       "worklet";
 
       // Track when multi-touch gestures end

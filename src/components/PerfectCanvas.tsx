@@ -14,11 +14,15 @@ import {
   useCanvasRef,
   ImageFormat,
   Skia,
+  SkImage,
+  SkMatrix,
 } from "@shopify/react-native-skia";
 import {
   GestureDetector,
   Gesture,
   GestureHandlerRootView,
+  SimultaneousGesture,
+  PanGesture,
 } from "react-native-gesture-handler";
 import {
   useSharedValue,
@@ -33,6 +37,7 @@ import type {
   Point,
   DrawingState,
   StrokeOptions,
+  HapticStyle,
 } from "../types";
 import {
   generateId,
@@ -44,7 +49,7 @@ import {
 import { useHaptics, useDrawingGesture, useZoomGesture } from "../hooks";
 
 const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
-  (props, ref) => {
+  (props, ref): React.ReactElement => {
     const {
       style,
       backgroundColor = "white",
@@ -117,7 +122,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
 
     // Stroke options with defaults
     const finalStrokeOptions: StrokeOptions = useMemo(
-      () => ({
+      (): StrokeOptions => ({
         size: currentStrokeWidth,
         thinning: 0.5,
         smoothing: 0.5,
@@ -129,7 +134,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
 
     // Drawing callbacks
     const handleDrawStart = useCallback(
-      (point: Point) => {
+      (point: Point): void => {
         isDrawingRef.current = true;
         currentPathPoints.current = [point];
         lastDrawPoint.current = point;
@@ -146,7 +151,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     );
 
     const handleDrawUpdate = useCallback(
-      (point: Point) => {
+      (point: Point): void => {
         if (!isDrawingRef.current) return;
 
         currentPathPoints.current.push(point);
@@ -188,7 +193,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     );
 
     const handleDrawEnd = useCallback(
-      (points: Point[]) => {
+      (points: Point[]): void => {
         // Allow single point (dot) by duplicating it
         if (points.length === 1) {
           // Create a small dot by adding a point very close to the first one
@@ -221,12 +226,12 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
         };
 
         // Update state
-        setPaths((prev) => {
+        setPaths((prev): PathData[] => {
           const newPaths = [...prev, newPath];
           historyManager.current.push(newPaths);
 
           // Clear current path after state update to avoid blink
-          requestAnimationFrame(() => {
+          requestAnimationFrame((): void => {
             currentPathShared.value = "";
           });
 
@@ -296,7 +301,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     });
 
     // Combine gestures - drawing and zoom/pan
-    const composedGesture = useMemo(() => {
+    const composedGesture = useMemo((): SimultaneousGesture | PanGesture => {
       if (enableZoom) {
         // Combine drawing with the unified pan+zoom gesture
         return Gesture.Simultaneous(drawingGesture, combinedGesture);
@@ -305,7 +310,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     }, [enableZoom, drawingGesture, combinedGesture]);
 
     // Create derived values for transformation with proper dependencies
-    const transformMatrix = useDerivedValue(() => {
+    const transformMatrix = useDerivedValue((): SkMatrix => {
       if (!enableZoom || !scale || !translation) {
         return Skia.Matrix();
       }
@@ -320,8 +325,8 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     // Imperative handle
     useImperativeHandle(
       ref,
-      () => ({
-        undo: (steps = 1) => {
+      (): PerfectCanvasRef => ({
+        undo: (steps = 1): void => {
           for (let i = 0; i < steps; i++) {
             const previousState = historyManager.current.undo();
             if (previousState) {
@@ -334,7 +339,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
             triggerSelection();
           }
         },
-        redo: (steps = 1) => {
+        redo: (steps = 1): void => {
           for (let i = 0; i < steps; i++) {
             const nextState = historyManager.current.redo();
             if (nextState) {
@@ -347,74 +352,81 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
             triggerSelection();
           }
         },
-        clear: () => {
+        clear: (): void => {
           setPaths([]);
           historyManager.current.push([]);
           if (hapticsEnabled) {
             triggerNotification("success");
           }
         },
-        reset: () => {
+        reset: (): void => {
           setPaths([]);
           historyManager.current.clear();
           if (enableZoom) {
             resetZoom();
           }
         },
-        resetZoom: () => {
+        resetZoom: (): void => {
           if (enableZoom && resetZoom) {
             resetZoom();
           }
         },
-        setZoom: (zoom: number) => {
+        setZoom: (zoom: number): void => {
           if (enableZoom && setScale) {
             setScale(zoom, true);
           }
         },
-        getSnapshot: async () => {
+        getSnapshot: async (): Promise<SkImage | undefined> => {
           return canvasRef.current?.makeImageSnapshotAsync();
         },
-        toBase64: async (format = ImageFormat.PNG, quality = 100) => {
+        toBase64: async (
+          format = ImageFormat.PNG,
+          quality = 100
+        ): Promise<string | undefined> => {
           const snapshot = await canvasRef.current?.makeImageSnapshotAsync();
           return snapshot?.encodeToBase64(format, quality);
         },
-        toSvg: (width = 1000, height = 1000, bgColor) => {
+        toSvg: (
+          width = 1000,
+          height = 1000,
+          bgColor: string = currentBackgroundColor
+        ): string => {
           return createSvgFromPaths(paths, {
             width,
             height,
             backgroundColor: bgColor || currentBackgroundColor,
           });
         },
-        getPaths: () => paths,
-        setPaths: (newPaths) => {
+        getPaths: (): PathData[] => paths,
+        setPaths: (newPaths: PathData[]): void => {
           setPaths(newPaths);
           historyManager.current.push(newPaths);
         },
-        importSvg: (svg) => {
+        importSvg: (_svg: string): void => {
           // TODO: Implement SVG import
           console.warn("SVG import not yet implemented");
         },
-        setStrokeColor: (color) => {
+        setStrokeColor: (color: string): void => {
           setCurrentStrokeColor(color);
           strokeColorShared.value = color;
         },
-        setStrokeWidth: (width) => {
+        setStrokeWidth: (width: number): void => {
           setCurrentStrokeWidth(width);
           strokeWidthShared.value = width;
         },
-        setStrokeOpacity: (opacity) => {
+        setStrokeOpacity: (opacity: number): void => {
           setCurrentStrokeOpacity(opacity);
         },
-        setBackgroundColor: (color) => {
+        setBackgroundColor: (color: string): void => {
           setCurrentBackgroundColor(color);
         },
-        setEnableHaptics: (enabled) => {
+        setEnableHaptics: (enabled: boolean): void => {
           setHapticsEnabled(enabled);
         },
-        setHapticStyle: (style) => {
+        setHapticStyle: (style: HapticStyle): void => {
           setCurrentHapticStyle(style);
         },
-        getDrawingState: () => ({
+        getDrawingState: (): DrawingState => ({
           paths,
           currentPath: null,
           isDrawing: isDrawingRef.current,
@@ -422,7 +434,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
           strokeWidth: currentStrokeWidth,
           strokeOpacity: currentStrokeOpacity,
         }),
-        isDrawing: () => isDrawingRef.current,
+        isDrawing: (): boolean => isDrawingRef.current,
       }),
       [
         paths,
@@ -440,17 +452,19 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     );
 
     // Render paths with transformation
-    const renderedPaths = useMemo(() => {
+    const renderedPaths = useMemo((): React.ReactNode[] => {
       // We need to use a Group with matrix transformation
-      return paths.map((path) => (
-        <Path
-          key={path.id}
-          path={path.svgPath}
-          color={path.color}
-          style="fill"
-          opacity={path.opacity || 1}
-        />
-      ));
+      return paths.map(
+        (path): React.ReactNode => (
+          <Path
+            key={path.id}
+            path={path.svgPath}
+            color={path.color}
+            style="fill"
+            opacity={path.opacity || 1}
+          />
+        )
+      );
     }, [paths]);
 
     return (
@@ -458,7 +472,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
         <GestureDetector gesture={composedGesture}>
           <View
             style={styles.canvasContainer}
-            onLayout={(e) => {
+            onLayout={(e): void => {
               const { width, height } = e.nativeEvent.layout;
               setCanvasSize({ width, height });
             }}

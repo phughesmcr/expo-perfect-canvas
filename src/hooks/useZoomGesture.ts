@@ -1,6 +1,16 @@
 import { useCallback } from "react";
-import { Gesture } from "react-native-gesture-handler";
-import { useSharedValue, withTiming, runOnJS } from "react-native-reanimated";
+import {
+  Gesture,
+  PanGesture,
+  PinchGesture,
+  SimultaneousGesture,
+} from "react-native-gesture-handler";
+import {
+  useSharedValue,
+  withTiming,
+  runOnJS,
+  SharedValue,
+} from "react-native-reanimated";
 import { Dimensions } from "react-native";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -15,7 +25,21 @@ interface ZoomGestureConfig {
   canvasHeight?: number;
 }
 
-export function useZoomGesture(config: ZoomGestureConfig = {}) {
+export function useZoomGesture(config: ZoomGestureConfig = {}): {
+  combinedGesture: SimultaneousGesture;
+  pinchGesture: PinchGesture;
+  panGesture: PanGesture;
+  scale: SharedValue<number>;
+  translation: SharedValue<{ x: number; y: number }>;
+  reset: (duration?: number) => void;
+  setScale: (
+    newScale: number,
+    animated?: boolean,
+    anchor?: { x: number; y: number }
+  ) => void;
+  isPinching: SharedValue<boolean>;
+  isPanning: SharedValue<boolean>;
+} {
   const {
     enabled = true,
     minScale = 0.1,
@@ -53,7 +77,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
   // Pinch gesture handles zoom and pan simultaneously
   const pinchGesture = Gesture.Pinch()
     .enabled(enabled)
-    .onStart((e) => {
+    .onStart((e): void => {
       "worklet";
 
       // Debug logging removed - was causing UI thread blocking
@@ -74,7 +98,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
 
       isPinching.value = true;
     })
-    .onUpdate((e) => {
+    .onUpdate((e): void => {
       "worklet";
 
       // Calculate new scale
@@ -155,7 +179,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
         }
       }
     })
-    .onEnd(() => {
+    .onEnd((): void => {
       "worklet";
       // Pinch ended
       isPinching.value = false;
@@ -175,13 +199,13 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
     .minPointers(2)
     .maxPointers(2)
     .averageTouches(true)
-    .onStart(() => {
+    .onStart((): void => {
       "worklet";
       // Pan started
       savedTranslation.value = { ...translation.value };
       isPanning.value = true;
     })
-    .onUpdate((e) => {
+    .onUpdate((e): void => {
       "worklet";
 
       // Don't update translation if pinch is active - let pinch handle it
@@ -208,7 +232,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
         runOnJS(onTranslateChange)(translation.value.x, translation.value.y);
       }
     })
-    .onEnd(() => {
+    .onEnd((): void => {
       "worklet";
       // Pan ended
       isPanning.value = false;
@@ -222,7 +246,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
   // Use Simultaneous
   const combinedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
 
-  const reset = useCallback((duration: number = 300) => {
+  const reset = useCallback((duration: number = 300): void => {
     "worklet";
     scale.value = withTiming(1, { duration });
     translation.value = withTiming({ x: 0, y: 0 }, { duration });
@@ -235,7 +259,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
       newScale: number,
       animated: boolean = true,
       anchor?: { x: number; y: number }
-    ) => {
+    ): void => {
       "worklet";
       const clampedScale = Math.min(Math.max(newScale, minScale), maxScale);
 

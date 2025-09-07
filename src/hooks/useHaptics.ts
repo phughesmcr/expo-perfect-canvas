@@ -9,14 +9,19 @@ interface HapticsConfig {
   minInterval?: number;
 }
 
-export function useHaptics(config: HapticsConfig = {}) {
+export function useHaptics(config: HapticsConfig = {}): {
+  triggerHaptic: (intensity?: number) => void;
+  triggerDrawingHaptic: (velocity: number, pressure?: number) => void;
+  triggerSelection: () => void;
+  triggerNotification: (type?: "success" | "warning" | "error") => void;
+} {
   const { enabled = true, style = "light", minInterval = 16 } = config;
   const lastHapticTime = useRef<number>(0);
   const lastVelocity = useRef<number>(0);
   const hapticCounter = useRef<number>(0);
 
   const triggerHaptic = useCallback(
-    (intensity?: number) => {
+    (intensity?: number): void => {
       if (!enabled) return;
 
       const now = Date.now();
@@ -60,7 +65,7 @@ export function useHaptics(config: HapticsConfig = {}) {
   );
 
   const triggerDrawingHaptic = useCallback(
-    (velocity: number, pressure: number = 0.5) => {
+    (velocity: number, pressure: number = 0.5): void => {
       if (!enabled) return;
 
       const now = Date.now();
@@ -102,7 +107,7 @@ export function useHaptics(config: HapticsConfig = {}) {
 
       // Add extra pulse on sharp direction changes
       if (deltaVelocity > 0.4) {
-        setTimeout(() => {
+        setTimeout((): void => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }, 10);
       }
@@ -110,13 +115,13 @@ export function useHaptics(config: HapticsConfig = {}) {
     [enabled]
   );
 
-  const triggerSelection = useCallback(() => {
+  const triggerSelection = useCallback((): void => {
     if (!enabled) return;
     Haptics.selectionAsync();
   }, [enabled]);
 
   const triggerNotification = useCallback(
-    (type: "success" | "warning" | "error" = "success") => {
+    (type: "success" | "warning" | "error" = "success"): void => {
       if (!enabled) return;
 
       switch (type) {

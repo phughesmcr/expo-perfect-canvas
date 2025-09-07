@@ -8,13 +8,13 @@ export function generateId(): string {
 
 export function processPoints(points: Point[], options: StrokeOptions): string {
   if (points.length < 2) return "";
-  
+
   const stroke = getStroke(points, {
     size: options.size || 8,
     thinning: options.thinning ?? 0.5,
     smoothing: options.smoothing ?? 0.5,
     streamline: options.streamline ?? 0.5,
-    easing: options.easing || ((t) => t),
+    easing: options.easing || ((t): number => t),
     start: options.start || { taper: 0, cap: true },
     end: options.end || { taper: 0, cap: true },
   });
@@ -31,8 +31,8 @@ export function simplifyPath(points: Point[], tolerance: number = 1): Point[] {
   for (let i = 1; i < points.length - 1; i++) {
     const point = points[i];
     const distance = Math.sqrt(
-      Math.pow(point[0] - prevPoint[0], 2) + 
-      Math.pow(point[1] - prevPoint[1], 2)
+      Math.pow(point[0] - prevPoint[0], 2) +
+        Math.pow(point[1] - prevPoint[1], 2)
     );
 
     if (distance >= tolerance) {
@@ -45,12 +45,12 @@ export function simplifyPath(points: Point[], tolerance: number = 1): Point[] {
   return simplified;
 }
 
-export function getPathBounds(points: Point[]): { 
-  minX: number; 
-  minY: number; 
-  maxX: number; 
-  maxY: number; 
-  width: number; 
+export function getPathBounds(points: Point[]): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
   height: number;
 } {
   if (points.length === 0) {
@@ -83,10 +83,10 @@ export function interpolatePoints(p1: Point, p2: Point, t: number): Point {
   return [
     p1[0] + (p2[0] - p1[0]) * t,
     p1[1] + (p2[1] - p1[1]) * t,
-    p1[2] !== undefined && p2[2] !== undefined 
-      ? p1[2] + (p2[2] - p1[2]) * t 
+    p1[2] !== undefined && p2[2] !== undefined
+      ? p1[2] + (p2[2] - p1[2]) * t
       : undefined,
-  ].filter((v) => v !== undefined) as Point;
+  ].filter((v): boolean => v !== undefined) as Point;
 }
 
 export function getVelocity(p1: Point, p2: Point, deltaTime: number): number {

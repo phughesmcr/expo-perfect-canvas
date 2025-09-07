@@ -4,6 +4,10 @@ import type { SharedValue } from "react-native-reanimated";
 
 export type Point = [number, number, number?]; // [x, y, pressure?]
 
+export type HapticStyle = "light" | "medium" | "heavy" | "soft" | "rigid";
+
+export type RenderMode = "continuous" | "onDemand";
+
 export interface StrokeOptions {
   size?: number;
   thinning?: number;
@@ -60,7 +64,7 @@ export interface PerfectCanvasRef {
   setStrokeOpacity: (opacity: number) => void;
   setBackgroundColor: (color: string) => void;
   setEnableHaptics: (enabled: boolean) => void;
-  setHapticStyle: (style: 'light' | 'medium' | 'heavy' | 'soft' | 'rigid') => void;
+  setHapticStyle: (style: HapticStyle) => void;
   getDrawingState: () => DrawingState;
   isDrawing: () => boolean;
 }
@@ -73,7 +77,7 @@ export interface PerfectCanvasProps {
   strokeOpacity?: number | SharedValue<number>;
   strokeOptions?: StrokeOptions;
   enableHaptics?: boolean;
-  hapticStyle?: 'light' | 'medium' | 'heavy' | 'soft' | 'rigid';
+  hapticStyle?: HapticStyle;
   enableZoom?: boolean;
   zoomRange?: [number, number];
   enableRotation?: boolean;
@@ -81,7 +85,7 @@ export interface PerfectCanvasProps {
   debounceDelay?: number;
   simplifyPaths?: boolean;
   simplifyTolerance?: number;
-  renderMode?: 'continuous' | 'onDemand';
+  renderMode?: RenderMode;
   onDrawStart?: (point?: Point) => void;
   onDrawUpdate?: (point: Point) => void;
   onDrawEnd?: (path: PathData) => void;
