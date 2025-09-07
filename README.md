@@ -1,5 +1,9 @@
 # Expo Perfect Canvas
 
+⛔️ This is a fork of https://github.com/Hokyjack/expo-perfect-canvas edited for my own project's needs. It doesn't behave like the original.
+
+---
+
 A high-performance React Native drawing canvas with perfect-freehand integration, haptic feedback, and modern gesture handling.
 
 ## Features
