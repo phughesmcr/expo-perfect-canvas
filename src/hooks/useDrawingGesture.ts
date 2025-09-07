@@ -1,11 +1,7 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { Gesture, PanGesture } from "react-native-gesture-handler";
-import {
-  runOnJS,
-  useSharedValue,
-  SharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { useSharedValue, SharedValue } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import type { Point } from "../types";
 
 interface DrawingGestureConfig {
@@ -21,11 +17,15 @@ interface DrawingGestureConfig {
   isPanning?: SharedValue<boolean>;
 }
 
-export function useDrawingGesture(config: DrawingGestureConfig): {
+interface DrawingGestureResult {
   gesture: PanGesture;
   currentPath: SharedValue<Point[]>;
   isDrawing: SharedValue<boolean>;
-} {
+}
+
+export function useDrawingGesture(
+  config: DrawingGestureConfig
+): DrawingGestureResult {
   const {
     onDrawStart,
     onDrawUpdate,
@@ -74,7 +74,7 @@ export function useDrawingGesture(config: DrawingGestureConfig): {
       multiTouchEndTime.value = 0;
 
       if (onDrawStart) {
-        runOnJS(onDrawStart)(point);
+        scheduleOnRN(onDrawStart, point);
       }
     },
     [enablePressure, onDrawStart, scale, translation]
@@ -127,7 +127,7 @@ export function useDrawingGesture(config: DrawingGestureConfig): {
       lastTime.value = now;
 
       if (onDrawUpdate) {
-        runOnJS(onDrawUpdate)(point);
+        scheduleOnRN(onDrawUpdate, point);
       }
     },
     [
@@ -151,7 +151,7 @@ export function useDrawingGesture(config: DrawingGestureConfig): {
 
     // Always call onDrawEnd even for single tap (dot)
     if (onDrawEnd && points.length > 0) {
-      runOnJS(onDrawEnd)(points);
+      scheduleOnRN(onDrawEnd, points);
     }
   }, [onDrawEnd]);
 

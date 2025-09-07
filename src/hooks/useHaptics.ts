@@ -1,7 +1,6 @@
 import { useCallback, useRef } from "react";
 import * as Haptics from "expo-haptics";
-
-export type HapticStyle = "light" | "medium" | "heavy" | "soft" | "rigid";
+import type { HapticStyle } from "../types";
 
 interface HapticsConfig {
   enabled?: boolean;
@@ -9,12 +8,14 @@ interface HapticsConfig {
   minInterval?: number;
 }
 
-export function useHaptics(config: HapticsConfig = {}): {
+interface HapticsResult {
   triggerHaptic: (intensity?: number) => void;
   triggerDrawingHaptic: (velocity: number, pressure?: number) => void;
   triggerSelection: () => void;
   triggerNotification: (type?: "success" | "warning" | "error") => void;
-} {
+}
+
+export function useHaptics(config: HapticsConfig = {}): HapticsResult {
   const { enabled = true, style = "light", minInterval = 16 } = config;
   const lastHapticTime = useRef<number>(0);
   const lastVelocity = useRef<number>(0);
