@@ -24,11 +24,7 @@ import {
   SimultaneousGesture,
   PanGesture,
 } from "react-native-gesture-handler";
-import {
-  useSharedValue,
-  runOnJS,
-  useDerivedValue,
-} from "react-native-reanimated";
+import { useSharedValue, useDerivedValue } from "react-native-reanimated";
 import { View, StyleSheet } from "react-native";
 import type {
   PerfectCanvasProps,
@@ -61,9 +57,9 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       hapticStyle = "light",
       enableZoom = false,
       zoomRange = [0.5, 3],
-      enableRotation = false,
+      // enableRotation = false,
       maxHistorySize = 50,
-      debounceDelay = 0,
+      // debounceDelay = 0,
       simplifyPaths = true,
       simplifyTolerance = 1,
       renderMode = "continuous",
@@ -71,12 +67,12 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       onDrawUpdate,
       onDrawEnd,
       onPathComplete,
-      onStateChange,
+      // onStateChange,
       onZoomChange,
       onTranslateChange,
-      onRotationChange,
+      // onRotationChange,
       children,
-      debug = false,
+      // debug = false,
     } = props;
 
     // State
@@ -268,8 +264,8 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     // Zoom gesture - always call the hook
     const {
       combinedGesture,
-      pinchGesture,
-      panGesture,
+      // pinchGesture,
+      // panGesture,
       scale,
       translation,
       reset: resetZoom,
@@ -402,10 +398,10 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
           setPaths(newPaths);
           historyManager.current.push(newPaths);
         },
-        importSvg: (_svg: string): void => {
+        /* importSvg: (_svg: string): void => {
           // TODO: Implement SVG import
           console.warn("SVG import not yet implemented");
-        },
+        }, */
         setStrokeColor: (color: string): void => {
           setCurrentStrokeColor(color);
           strokeColorShared.value = color;

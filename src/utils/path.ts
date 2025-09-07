@@ -9,7 +9,7 @@ export function generateId(): string {
 export function processPoints(points: Point[], options: StrokeOptions): string {
   if (points.length < 2) return "";
 
-  const stroke = getStroke(points, {
+  const stroke = getStroke(points as number[][], {
     size: options.size || 8,
     thinning: options.thinning ?? 0.5,
     smoothing: options.smoothing ?? 0.5,
