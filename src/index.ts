@@ -1,6 +1,6 @@
 // Main export
-export { PerfectCanvas as default } from './components/PerfectCanvas';
-export { PerfectCanvas } from './components/PerfectCanvas';
+export { PerfectCanvas as default } from "./components/PerfectCanvas";
+export { PerfectCanvas } from "./components/PerfectCanvas";
 
 // Type exports
 export type {
@@ -10,14 +10,10 @@ export type {
   Point,
   DrawingState,
   StrokeOptions,
-} from './types';
+} from "./types";
 
 // Hook exports
-export {
-  useHaptics,
-  useDrawingGesture,
-  useZoomGesture,
-} from './hooks';
+export { useHaptics, useDrawingGesture, useZoomGesture } from "./hooks";
 
 // Utility exports
 export {
@@ -32,4 +28,4 @@ export {
   getVelocity,
   velocityToPressure,
   HistoryManager,
-} from './utils';
+} from "./utils";

@@ -1,13 +1,9 @@
-import { useCallback } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
-import {
-  useSharedValue,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
-import { Dimensions } from 'react-native';
+import { useCallback } from "react";
+import { Gesture } from "react-native-gesture-handler";
+import { useSharedValue, withTiming, runOnJS } from "react-native-reanimated";
+import { Dimensions } from "react-native";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 interface ZoomGestureConfig {
   enabled?: boolean;
@@ -29,7 +25,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
     canvasWidth = screenWidth,
     canvasHeight = screenHeight,
   } = config;
-  
+
   // Throttle flags to prevent too many JS callbacks
   const lastCallbackTime = useSharedValue(0);
   const callbackThrottle = 16; // ~60fps max
@@ -37,11 +33,11 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
   // Main state - this is the source of truth
   const scale = useSharedValue(1);
   const translation = useSharedValue({ x: 0, y: 0 });
-  
+
   // Values saved at gesture start
   const savedScale = useSharedValue(1);
   const savedTranslation = useSharedValue({ x: 0, y: 0 });
-  
+
   // Pinch specific
   const pinchFocal = useSharedValue({ x: 0, y: 0 });
   const pinchAnchor = useSharedValue({ x: 0, y: 0 });
@@ -49,7 +45,7 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
   const lastScale = useSharedValue(1);
   const jumpDetectedTime = useSharedValue(0);
   const consecutiveJumps = useSharedValue(0);
-  
+
   // Flags
   const isPinching = useSharedValue(false);
   const isPanning = useSharedValue(false);
@@ -58,10 +54,10 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
   const pinchGesture = Gesture.Pinch()
     .enabled(enabled)
     .onStart((e) => {
-      'worklet';
-      
+      "worklet";
+
       // Debug logging removed - was causing UI thread blocking
-      
+
       savedScale.value = scale.value;
       savedTranslation.value = { ...translation.value };
       pinchFocal.value = { x: e.focalX, y: e.focalY };
@@ -69,43 +65,45 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
       lastScale.value = 1;
       jumpDetectedTime.value = 0;
       consecutiveJumps.value = 0;
-      
+
       // Calculate the world point under the focal point
       pinchAnchor.value = {
         x: (e.focalX - translation.value.x) / scale.value,
-        y: (e.focalY - translation.value.y) / scale.value
+        y: (e.focalY - translation.value.y) / scale.value,
       };
-      
+
       isPinching.value = true;
     })
     .onUpdate((e) => {
-      'worklet';
-      
+      "worklet";
+
       // Calculate new scale
       const newScale = Math.min(
         Math.max(savedScale.value * e.scale, minScale),
         maxScale
       );
-      
+
       // The focal point may have moved (pan during pinch)
       let focalX = e.focalX;
       let focalY = e.focalY;
-      
+
       // Detect focal point jump (happens when lifting a finger)
       const focalJumpThreshold = 40; // pixels - reduced for better detection
       const deltaX = Math.abs(focalX - lastValidFocal.value.x);
       const deltaY = Math.abs(focalY - lastValidFocal.value.y);
-      const focalJumped = (deltaX > focalJumpThreshold || deltaY > focalJumpThreshold);
-      
+      const focalJumped =
+        deltaX > focalJumpThreshold || deltaY > focalJumpThreshold;
+
       // Check if scale stayed nearly the same (indicates finger lift, not intentional zoom)
       const scaleStable = Math.abs(e.scale - lastScale.value) < 0.01;
-      
+
       // Special check for when we're at min/max scale limits
-      const atScaleLimit = (newScale === minScale && scale.value === minScale) || 
-                          (newScale === maxScale && scale.value === maxScale);
-      
+      const atScaleLimit =
+        (newScale === minScale && scale.value === minScale) ||
+        (newScale === maxScale && scale.value === maxScale);
+
       const now = Date.now();
-      
+
       if (focalJumped && (scaleStable || atScaleLimit)) {
         // Focal jump detected - ignoring
         consecutiveJumps.value++;
@@ -113,7 +111,10 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
         // Use the last valid focal point instead
         focalX = lastValidFocal.value.x;
         focalY = lastValidFocal.value.y;
-      } else if (consecutiveJumps.value > 0 && (now - jumpDetectedTime.value) < 200) {
+      } else if (
+        consecutiveJumps.value > 0 &&
+        now - jumpDetectedTime.value < 200
+      ) {
         // If we recently detected jumps, be more conservative about accepting new focal points
         const smallDelta = deltaX < 20 && deltaY < 20;
         if (!smallDelta) {
@@ -130,19 +131,19 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
         lastValidFocal.value = { x: focalX, y: focalY };
         consecutiveJumps.value = 0;
       }
-      
+
       lastScale.value = e.scale;
-      
+
       // Update scale and focal point
-      
+
       // Keep the anchor point at the focal point
       translation.value = {
         x: focalX - pinchAnchor.value.x * newScale,
-        y: focalY - pinchAnchor.value.y * newScale
+        y: focalY - pinchAnchor.value.y * newScale,
       };
-      
+
       scale.value = newScale;
-      
+
       // Throttle callbacks to prevent performance issues
       if (now - lastCallbackTime.value > callbackThrottle) {
         lastCallbackTime.value = now;
@@ -155,10 +156,10 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
       }
     })
     .onEnd(() => {
-      'worklet';
+      "worklet";
       // Pinch ended
       isPinching.value = false;
-      
+
       // Final callback to sync state
       if (onScaleChange) {
         runOnJS(onScaleChange)(scale.value);
@@ -175,40 +176,43 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
     .maxPointers(2)
     .averageTouches(true)
     .onStart(() => {
-      'worklet';
+      "worklet";
       // Pan started
       savedTranslation.value = { ...translation.value };
       isPanning.value = true;
     })
     .onUpdate((e) => {
-      'worklet';
-      
+      "worklet";
+
       // Don't update translation if pinch is active - let pinch handle it
       if (isPinching.value) {
         // Update skipped - pinch active
         return;
       }
-      
+
       // Update translation
-      
+
       // Simple pan - just add the translation
       translation.value = {
         x: savedTranslation.value.x + e.translationX,
-        y: savedTranslation.value.y + e.translationY
+        y: savedTranslation.value.y + e.translationY,
       };
-      
+
       // Throttle callback
       const nowPan = Date.now();
-      if (onTranslateChange && nowPan - lastCallbackTime.value > callbackThrottle) {
+      if (
+        onTranslateChange &&
+        nowPan - lastCallbackTime.value > callbackThrottle
+      ) {
         lastCallbackTime.value = nowPan;
         runOnJS(onTranslateChange)(translation.value.x, translation.value.y);
       }
     })
     .onEnd(() => {
-      'worklet';
+      "worklet";
       // Pan ended
       isPanning.value = false;
-      
+
       // Final callback to sync state
       if (onTranslateChange) {
         runOnJS(onTranslateChange)(translation.value.x, translation.value.y);
@@ -219,53 +223,63 @@ export function useZoomGesture(config: ZoomGestureConfig = {}) {
   const combinedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
 
   const reset = useCallback((duration: number = 300) => {
-    'worklet';
+    "worklet";
     scale.value = withTiming(1, { duration });
     translation.value = withTiming({ x: 0, y: 0 }, { duration });
     isPinching.value = false;
     isPanning.value = false;
   }, []);
 
-  const setScale = useCallback((
-    newScale: number, 
-    animated: boolean = true,
-    anchor?: { x: number; y: number }
-  ) => {
-    'worklet';
-    const clampedScale = Math.min(Math.max(newScale, minScale), maxScale);
-    
-    // Use provided anchor or default to canvas center
-    const anchorX = anchor ? anchor.x : canvasWidth / 2;
-    const anchorY = anchor ? anchor.y : canvasHeight / 2;
-    
-    // Calculate what world point is at the anchor
-    const worldX = (anchorX - translation.value.x) / scale.value;
-    const worldY = (anchorY - translation.value.y) / scale.value;
-    
-    // Calculate new translation to keep the world point at the anchor
-    const newTransX = anchorX - worldX * clampedScale;
-    const newTransY = anchorY - worldY * clampedScale;
-    
-    // Update scale and translation
-    if (animated) {
-      scale.value = withTiming(clampedScale, { duration: 200 });
-      translation.value = withTiming(
-        { x: newTransX, y: newTransY }, 
-        { duration: 200 }
-      );
-    } else {
-      scale.value = clampedScale;
-      translation.value = { x: newTransX, y: newTransY };
-    }
-    
-    if (onScaleChange) {
-      runOnJS(onScaleChange)(clampedScale);
-    }
-    
-    if (onTranslateChange) {
-      runOnJS(onTranslateChange)(newTransX, newTransY);
-    }
-  }, [minScale, maxScale, canvasWidth, canvasHeight, onScaleChange, onTranslateChange]);
+  const setScale = useCallback(
+    (
+      newScale: number,
+      animated: boolean = true,
+      anchor?: { x: number; y: number }
+    ) => {
+      "worklet";
+      const clampedScale = Math.min(Math.max(newScale, minScale), maxScale);
+
+      // Use provided anchor or default to canvas center
+      const anchorX = anchor ? anchor.x : canvasWidth / 2;
+      const anchorY = anchor ? anchor.y : canvasHeight / 2;
+
+      // Calculate what world point is at the anchor
+      const worldX = (anchorX - translation.value.x) / scale.value;
+      const worldY = (anchorY - translation.value.y) / scale.value;
+
+      // Calculate new translation to keep the world point at the anchor
+      const newTransX = anchorX - worldX * clampedScale;
+      const newTransY = anchorY - worldY * clampedScale;
+
+      // Update scale and translation
+      if (animated) {
+        scale.value = withTiming(clampedScale, { duration: 200 });
+        translation.value = withTiming(
+          { x: newTransX, y: newTransY },
+          { duration: 200 }
+        );
+      } else {
+        scale.value = clampedScale;
+        translation.value = { x: newTransX, y: newTransY };
+      }
+
+      if (onScaleChange) {
+        runOnJS(onScaleChange)(clampedScale);
+      }
+
+      if (onTranslateChange) {
+        runOnJS(onTranslateChange)(newTransX, newTransY);
+      }
+    },
+    [
+      minScale,
+      maxScale,
+      canvasWidth,
+      canvasHeight,
+      onScaleChange,
+      onTranslateChange,
+    ]
+  );
 
   return {
     combinedGesture,

@@ -1,3 +1,3 @@
-export * from './useHaptics';
-export * from './useDrawingGesture';
-export * from './useZoomGesture';
+export * from "./useHaptics";
+export * from "./useDrawingGesture";
+export * from "./useZoomGesture";

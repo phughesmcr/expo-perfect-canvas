@@ -1,12 +1,12 @@
-import { useCallback, useRef } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
+import { useCallback, useRef } from "react";
+import { Gesture } from "react-native-gesture-handler";
 import {
   runOnJS,
   useSharedValue,
   SharedValue,
   withTiming,
-} from 'react-native-reanimated';
-import type { Point } from '../types';
+} from "react-native-reanimated";
+import type { Point } from "../types";
 
 interface DrawingGestureConfig {
   onDrawStart?: (point: Point) => void;
@@ -41,88 +41,103 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
   const isDrawing = useSharedValue<boolean>(false);
   const multiTouchEndTime = useSharedValue<number>(0);
 
-  const handleStart = useCallback((x: number, y: number, pressure?: number) => {
-    'worklet';
-    
-    // Convert screen coordinates to world coordinates
-    // Simple: just reverse the transformation
-    let transformedX = x;
-    let transformedY = y;
-    
-    if (scale && translation) {
-      transformedX = (x - translation.value.x) / scale.value;
-      transformedY = (y - translation.value.y) / scale.value;
-    }
-    
-    const now = Date.now();
-    const point: Point = enablePressure && pressure !== undefined 
-      ? [transformedX, transformedY, pressure] 
-      : [transformedX, transformedY];
-    
-    currentPath.value = [point];
-    lastPoint.value = point;
-    lastTime.value = now;
-    isDrawing.value = true;
-    
-    // Clear the multi-touch end time since we're successfully drawing
-    multiTouchEndTime.value = 0;
+  const handleStart = useCallback(
+    (x: number, y: number, pressure?: number) => {
+      "worklet";
 
-    if (onDrawStart) {
-      runOnJS(onDrawStart)(point);
-    }
-  }, [enablePressure, onDrawStart, scale, translation]);
+      // Convert screen coordinates to world coordinates
+      // Simple: just reverse the transformation
+      let transformedX = x;
+      let transformedY = y;
 
-  const handleUpdate = useCallback((x: number, y: number, pressure?: number) => {
-    'worklet';
-    
-    if (!isDrawing.value || !lastPoint.value) return;
+      if (scale && translation) {
+        transformedX = (x - translation.value.x) / scale.value;
+        transformedY = (y - translation.value.y) / scale.value;
+      }
 
-    // Convert screen coordinates to world coordinates
-    // Simple: just reverse the transformation
-    let transformedX = x;
-    let transformedY = y;
-    
-    if (scale && translation) {
-      transformedX = (x - translation.value.x) / scale.value;
-      transformedY = (y - translation.value.y) / scale.value;
-    }
+      const now = Date.now();
+      const point: Point =
+        enablePressure && pressure !== undefined
+          ? [transformedX, transformedY, pressure]
+          : [transformedX, transformedY];
 
-    const now = Date.now();
-    const deltaTime = now - lastTime.value;
-    
-    // Calculate distance from last point
-    const distance = Math.sqrt(
-      Math.pow(transformedX - lastPoint.value[0], 2) + 
-      Math.pow(transformedY - lastPoint.value[1], 2)
-    );
+      currentPath.value = [point];
+      lastPoint.value = point;
+      lastTime.value = now;
+      isDrawing.value = true;
 
-    // Skip if movement is too small
-    if (distance < minDistance) return;
+      // Clear the multi-touch end time since we're successfully drawing
+      multiTouchEndTime.value = 0;
 
-    let finalPressure = pressure;
-    
-    // Calculate pressure from velocity if not provided (inline worklet)
-    if (enableVelocity && pressure === undefined && deltaTime > 0) {
-      const velocity = distance / deltaTime * 1000; // pixels per second
-      const normalized = Math.min(1, velocity / 100);
-      finalPressure = 1 - (normalized * 0.8); // max=1, min=0.2
-    }
+      if (onDrawStart) {
+        runOnJS(onDrawStart)(point);
+      }
+    },
+    [enablePressure, onDrawStart, scale, translation]
+  );
 
-    const point: Point = enablePressure && finalPressure !== undefined
-      ? [transformedX, transformedY, finalPressure]
-      : [transformedX, transformedY];
+  const handleUpdate = useCallback(
+    (x: number, y: number, pressure?: number) => {
+      "worklet";
 
-    currentPath.value = [...currentPath.value, point];
-    lastPoint.value = point;
-    lastTime.value = now;
+      if (!isDrawing.value || !lastPoint.value) return;
 
-    if (onDrawUpdate) {
-      runOnJS(onDrawUpdate)(point);
-    }
-  }, [enablePressure, enableVelocity, minDistance, onDrawUpdate, scale, translation]);
+      // Convert screen coordinates to world coordinates
+      // Simple: just reverse the transformation
+      let transformedX = x;
+      let transformedY = y;
+
+      if (scale && translation) {
+        transformedX = (x - translation.value.x) / scale.value;
+        transformedY = (y - translation.value.y) / scale.value;
+      }
+
+      const now = Date.now();
+      const deltaTime = now - lastTime.value;
+
+      // Calculate distance from last point
+      const distance = Math.sqrt(
+        Math.pow(transformedX - lastPoint.value[0], 2) +
+          Math.pow(transformedY - lastPoint.value[1], 2)
+      );
+
+      // Skip if movement is too small
+      if (distance < minDistance) return;
+
+      let finalPressure = pressure;
+
+      // Calculate pressure from velocity if not provided (inline worklet)
+      if (enableVelocity && pressure === undefined && deltaTime > 0) {
+        const velocity = (distance / deltaTime) * 1000; // pixels per second
+        const normalized = Math.min(1, velocity / 100);
+        finalPressure = 1 - normalized * 0.8; // max=1, min=0.2
+      }
+
+      const point: Point =
+        enablePressure && finalPressure !== undefined
+          ? [transformedX, transformedY, finalPressure]
+          : [transformedX, transformedY];
+
+      currentPath.value = [...currentPath.value, point];
+      lastPoint.value = point;
+      lastTime.value = now;
+
+      if (onDrawUpdate) {
+        runOnJS(onDrawUpdate)(point);
+      }
+    },
+    [
+      enablePressure,
+      enableVelocity,
+      minDistance,
+      onDrawUpdate,
+      scale,
+      translation,
+    ]
+  );
 
   const handleEnd = useCallback(() => {
-    'worklet';
+    "worklet";
     if (!isDrawing.value) return;
 
     const points = [...currentPath.value];
@@ -140,8 +155,8 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
     .minDistance(0)
     .maxPointers(1)
     .onBegin((e) => {
-      'worklet';
-      
+      "worklet";
+
       // Check if we recently ended a multi-touch gesture
       // This prevents accidental drawing when lifting fingers
       const now = Date.now();
@@ -153,30 +168,30 @@ export function useDrawingGesture(config: DrawingGestureConfig) {
         multiTouchEndTime.value = now;
         return;
       }
-      
+
       // Don't start drawing if we just finished a multi-touch gesture (within 100ms)
       if (now - multiTouchEndTime.value < 100) {
         return;
       }
-      
+
       handleStart(e.x, e.y);
     })
     .onUpdate((e) => {
-      'worklet';
-      
+      "worklet";
+
       // Don't update if we're in a multi-touch gesture
       if (isPanning && isPanning.value) return;
       if (isPinching && isPinching.value) return;
-      
+
       handleUpdate(e.x, e.y);
     })
     .onEnd(() => {
-      'worklet';
+      "worklet";
       handleEnd();
     })
     .onFinalize(() => {
-      'worklet';
-      
+      "worklet";
+
       // Track when multi-touch gestures end
       if (isPanning && !isPanning.value && multiTouchEndTime.value === 0) {
         multiTouchEndTime.value = Date.now();

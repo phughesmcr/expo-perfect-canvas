@@ -1,3 +1,3 @@
-export * from './svg';
-export * from './path';
-export * from './history';
+export * from "./svg";
+export * from "./path";
+export * from "./history";

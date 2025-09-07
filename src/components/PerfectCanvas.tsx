@@ -6,7 +6,7 @@ import React, {
   useCallback,
   useMemo,
   memo,
-} from 'react';
+} from "react";
 import {
   Canvas,
   Path,
@@ -14,18 +14,18 @@ import {
   useCanvasRef,
   ImageFormat,
   Skia,
-} from '@shopify/react-native-skia';
+} from "@shopify/react-native-skia";
 import {
   GestureDetector,
   Gesture,
   GestureHandlerRootView,
-} from 'react-native-gesture-handler';
+} from "react-native-gesture-handler";
 import {
   useSharedValue,
   runOnJS,
   useDerivedValue,
-} from 'react-native-reanimated';
-import { View, StyleSheet } from 'react-native';
+} from "react-native-reanimated";
+import { View, StyleSheet } from "react-native";
 import type {
   PerfectCanvasProps,
   PerfectCanvasRef,
@@ -33,27 +33,27 @@ import type {
   Point,
   DrawingState,
   StrokeOptions,
-} from '../types';
+} from "../types";
 import {
   generateId,
   processPoints,
   simplifyPath,
   createSvgFromPaths,
   HistoryManager,
-} from '../utils';
-import { useHaptics, useDrawingGesture, useZoomGesture } from '../hooks';
+} from "../utils";
+import { useHaptics, useDrawingGesture, useZoomGesture } from "../hooks";
 
 const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
   (props, ref) => {
     const {
       style,
-      backgroundColor = 'white',
-      strokeColor: propStrokeColor = 'black',
+      backgroundColor = "white",
+      strokeColor: propStrokeColor = "black",
       strokeWidth: propStrokeWidth = 8,
       strokeOpacity: propStrokeOpacity = 1,
       strokeOptions = {},
       enableHaptics = true,
-      hapticStyle = 'light',
+      hapticStyle = "light",
       enableZoom = false,
       zoomRange = [0.5, 3],
       enableRotation = false,
@@ -61,7 +61,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       debounceDelay = 0,
       simplifyPaths = true,
       simplifyTolerance = 1,
-      renderMode = 'continuous',
+      renderMode = "continuous",
       onDrawStart,
       onDrawUpdate,
       onDrawEnd,
@@ -77,15 +77,16 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     // State
     const [paths, setPaths] = useState<PathData[]>([]);
     const [currentStrokeColor, setCurrentStrokeColor] = useState(
-      typeof propStrokeColor === 'string' ? propStrokeColor : 'black'
+      typeof propStrokeColor === "string" ? propStrokeColor : "black"
     );
     const [currentStrokeWidth, setCurrentStrokeWidth] = useState(
-      typeof propStrokeWidth === 'number' ? propStrokeWidth : 8
+      typeof propStrokeWidth === "number" ? propStrokeWidth : 8
     );
     const [currentStrokeOpacity, setCurrentStrokeOpacity] = useState(
-      typeof propStrokeOpacity === 'number' ? propStrokeOpacity : 1
+      typeof propStrokeOpacity === "number" ? propStrokeOpacity : 1
     );
-    const [currentBackgroundColor, setCurrentBackgroundColor] = useState(backgroundColor);
+    const [currentBackgroundColor, setCurrentBackgroundColor] =
+      useState(backgroundColor);
     const [hapticsEnabled, setHapticsEnabled] = useState(enableHaptics);
     const [currentHapticStyle, setCurrentHapticStyle] = useState(hapticStyle);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
@@ -101,146 +102,163 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     // Shared values for animated props
     const strokeColorShared = useSharedValue(currentStrokeColor);
     const strokeWidthShared = useSharedValue(currentStrokeWidth);
-    const currentPathShared = useSharedValue<string>('');
+    const currentPathShared = useSharedValue<string>("");
 
     // Haptics
-    const { triggerHaptic, triggerDrawingHaptic, triggerSelection, triggerNotification } = useHaptics({
+    const {
+      triggerHaptic,
+      triggerDrawingHaptic,
+      triggerSelection,
+      triggerNotification,
+    } = useHaptics({
       enabled: hapticsEnabled,
       style: currentHapticStyle,
     });
 
     // Stroke options with defaults
-    const finalStrokeOptions: StrokeOptions = useMemo(() => ({
-      size: currentStrokeWidth,
-      thinning: 0.5,
-      smoothing: 0.5,
-      streamline: 0.5,
-      ...strokeOptions,
-    }), [currentStrokeWidth, strokeOptions]);
+    const finalStrokeOptions: StrokeOptions = useMemo(
+      () => ({
+        size: currentStrokeWidth,
+        thinning: 0.5,
+        smoothing: 0.5,
+        streamline: 0.5,
+        ...strokeOptions,
+      }),
+      [currentStrokeWidth, strokeOptions]
+    );
 
     // Drawing callbacks
-    const handleDrawStart = useCallback((point: Point) => {
-      isDrawingRef.current = true;
-      currentPathPoints.current = [point];
-      lastDrawPoint.current = point;
-      lastDrawTime.current = Date.now();
-      
-      if (hapticsEnabled) {
-        // Strong haptic feedback when starting to draw
-        triggerHaptic(0.7);
-      }
-      
-      onDrawStart?.(point);
-    }, [hapticsEnabled, triggerHaptic, onDrawStart]);
-
-    const handleDrawUpdate = useCallback((point: Point) => {
-      if (!isDrawingRef.current) return;
-      
-      currentPathPoints.current.push(point);
-      
-      // Throttle haptic feedback to improve performance
-      if (hapticsEnabled && lastDrawPoint.current) {
-        const now = Date.now();
-        const deltaTime = now - lastDrawTime.current;
-        
-        // Only trigger haptics every 20ms to reduce overhead
-        if (deltaTime > 20) {
-          const dx = point[0] - lastDrawPoint.current[0];
-          const dy = point[1] - lastDrawPoint.current[1];
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const velocity = (distance / deltaTime) * 1000;
-          const pressure = point[2] || 0.5;
-          
-          triggerDrawingHaptic(velocity, pressure);
-          lastDrawTime.current = now;
-        }
-        
+    const handleDrawStart = useCallback(
+      (point: Point) => {
+        isDrawingRef.current = true;
+        currentPathPoints.current = [point];
         lastDrawPoint.current = point;
-      }
-      
-      // Process points and update current path
-      // Only update if we have enough points to prevent jumps
-      if (currentPathPoints.current.length > 1) {
-        const svgPath = processPoints(
-          currentPathPoints.current,
-          finalStrokeOptions
-        );
-        currentPathShared.value = svgPath;
-      }
-      
-      // Call onDrawUpdate callback
-      onDrawUpdate?.(point);
-    }, [hapticsEnabled, triggerDrawingHaptic, finalStrokeOptions, onDrawUpdate]);
+        lastDrawTime.current = Date.now();
 
-    const handleDrawEnd = useCallback((points: Point[]) => {
-      // Allow single point (dot) by duplicating it
-      if (points.length === 1) {
-        // Create a small dot by adding a point very close to the first one
-        const dot = points[0];
-        points = [dot, [dot[0] + 0.1, dot[1] + 0.1, dot[2]]];
-      }
-      
-      if (points.length === 0) {
-        isDrawingRef.current = false;
-        currentPathShared.value = '';
-        return;
-      }
+        if (hapticsEnabled) {
+          // Strong haptic feedback when starting to draw
+          triggerHaptic(0.7);
+        }
 
-      // Simplify path if enabled
-      const finalPoints = simplifyPaths 
-        ? simplifyPath(points, simplifyTolerance)
-        : points;
+        onDrawStart?.(point);
+      },
+      [hapticsEnabled, triggerHaptic, onDrawStart]
+    );
 
-      // Process final path
-      const svgPath = processPoints(finalPoints, finalStrokeOptions);
-      
-      const newPath: PathData = {
-        id: generateId(),
-        points: finalPoints,
-        svgPath,
-        color: currentStrokeColor,
-        width: currentStrokeWidth,
-        opacity: currentStrokeOpacity,
-        completed: true,
-      };
+    const handleDrawUpdate = useCallback(
+      (point: Point) => {
+        if (!isDrawingRef.current) return;
 
-      // Update state
-      setPaths(prev => {
-        const newPaths = [...prev, newPath];
-        historyManager.current.push(newPaths);
-        
-        // Clear current path after state update to avoid blink
-        requestAnimationFrame(() => {
-          currentPathShared.value = '';
+        currentPathPoints.current.push(point);
+
+        // Throttle haptic feedback to improve performance
+        if (hapticsEnabled && lastDrawPoint.current) {
+          const now = Date.now();
+          const deltaTime = now - lastDrawTime.current;
+
+          // Only trigger haptics every 20ms to reduce overhead
+          if (deltaTime > 20) {
+            const dx = point[0] - lastDrawPoint.current[0];
+            const dy = point[1] - lastDrawPoint.current[1];
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const velocity = (distance / deltaTime) * 1000;
+            const pressure = point[2] || 0.5;
+
+            triggerDrawingHaptic(velocity, pressure);
+            lastDrawTime.current = now;
+          }
+
+          lastDrawPoint.current = point;
+        }
+
+        // Process points and update current path
+        // Only update if we have enough points to prevent jumps
+        if (currentPathPoints.current.length > 1) {
+          const svgPath = processPoints(
+            currentPathPoints.current,
+            finalStrokeOptions
+          );
+          currentPathShared.value = svgPath;
+        }
+
+        // Call onDrawUpdate callback
+        onDrawUpdate?.(point);
+      },
+      [hapticsEnabled, triggerDrawingHaptic, finalStrokeOptions, onDrawUpdate]
+    );
+
+    const handleDrawEnd = useCallback(
+      (points: Point[]) => {
+        // Allow single point (dot) by duplicating it
+        if (points.length === 1) {
+          // Create a small dot by adding a point very close to the first one
+          const dot = points[0];
+          points = [dot, [dot[0] + 0.1, dot[1] + 0.1, dot[2]]];
+        }
+
+        if (points.length === 0) {
+          isDrawingRef.current = false;
+          currentPathShared.value = "";
+          return;
+        }
+
+        // Simplify path if enabled
+        const finalPoints = simplifyPaths
+          ? simplifyPath(points, simplifyTolerance)
+          : points;
+
+        // Process final path
+        const svgPath = processPoints(finalPoints, finalStrokeOptions);
+
+        const newPath: PathData = {
+          id: generateId(),
+          points: finalPoints,
+          svgPath,
+          color: currentStrokeColor,
+          width: currentStrokeWidth,
+          opacity: currentStrokeOpacity,
+          completed: true,
+        };
+
+        // Update state
+        setPaths((prev) => {
+          const newPaths = [...prev, newPath];
+          historyManager.current.push(newPaths);
+
+          // Clear current path after state update to avoid blink
+          requestAnimationFrame(() => {
+            currentPathShared.value = "";
+          });
+
+          return newPaths;
         });
-        
-        return newPaths;
-      });
 
-      // Clear other drawing state
-      currentPathPoints.current = [];
-      isDrawingRef.current = false;
-      lastDrawPoint.current = null;
+        // Clear other drawing state
+        currentPathPoints.current = [];
+        isDrawingRef.current = false;
+        lastDrawPoint.current = null;
 
-      if (hapticsEnabled) {
-        // Subtle haptic when lifting the finger
-        triggerHaptic(0.3);
-      }
+        if (hapticsEnabled) {
+          // Subtle haptic when lifting the finger
+          triggerHaptic(0.3);
+        }
 
-      onDrawEnd?.(newPath);
-      onPathComplete?.(newPath);
-    }, [
-      simplifyPaths,
-      simplifyTolerance,
-      finalStrokeOptions,
-      currentStrokeColor,
-      currentStrokeWidth,
-      currentStrokeOpacity,
-      hapticsEnabled,
-      triggerSelection,
-      onDrawEnd,
-      onPathComplete,
-    ]);
+        onDrawEnd?.(newPath);
+        onPathComplete?.(newPath);
+      },
+      [
+        simplifyPaths,
+        simplifyTolerance,
+        finalStrokeOptions,
+        currentStrokeColor,
+        currentStrokeWidth,
+        currentStrokeOpacity,
+        hapticsEnabled,
+        triggerSelection,
+        onDrawEnd,
+        onPathComplete,
+      ]
+    );
 
     // Zoom gesture - always call the hook
     const {
@@ -277,15 +295,11 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       isPanning: enableZoom ? isPanning : undefined,
     });
 
-
     // Combine gestures - drawing and zoom/pan
     const composedGesture = useMemo(() => {
       if (enableZoom) {
         // Combine drawing with the unified pan+zoom gesture
-        return Gesture.Simultaneous(
-          drawingGesture,
-          combinedGesture
-        );
+        return Gesture.Simultaneous(drawingGesture, combinedGesture);
       }
       return drawingGesture;
     }, [enableZoom, drawingGesture, combinedGesture]);
@@ -295,7 +309,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
       if (!enableZoom || !scale || !translation) {
         return Skia.Matrix();
       }
-      
+
       const matrix = Skia.Matrix();
       // Simple: translate then scale
       matrix.translate(translation.value.x, translation.value.y);
@@ -304,122 +318,126 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     });
 
     // Imperative handle
-    useImperativeHandle(ref, () => ({
-      undo: (steps = 1) => {
-        for (let i = 0; i < steps; i++) {
-          const previousState = historyManager.current.undo();
-          if (previousState) {
-            setPaths(previousState);
-          } else {
-            break;
+    useImperativeHandle(
+      ref,
+      () => ({
+        undo: (steps = 1) => {
+          for (let i = 0; i < steps; i++) {
+            const previousState = historyManager.current.undo();
+            if (previousState) {
+              setPaths(previousState);
+            } else {
+              break;
+            }
           }
-        }
-        if (hapticsEnabled) {
-          triggerSelection();
-        }
-      },
-      redo: (steps = 1) => {
-        for (let i = 0; i < steps; i++) {
-          const nextState = historyManager.current.redo();
-          if (nextState) {
-            setPaths(nextState);
-          } else {
-            break;
+          if (hapticsEnabled) {
+            triggerSelection();
           }
-        }
-        if (hapticsEnabled) {
-          triggerSelection();
-        }
-      },
-      clear: () => {
-        setPaths([]);
-        historyManager.current.push([]);
-        if (hapticsEnabled) {
-          triggerNotification('success');
-        }
-      },
-      reset: () => {
-        setPaths([]);
-        historyManager.current.clear();
-        if (enableZoom) {
-          resetZoom();
-        }
-      },
-      resetZoom: () => {
-        if (enableZoom && resetZoom) {
-          resetZoom();
-        }
-      },
-      setZoom: (zoom: number) => {
-        if (enableZoom && setScale) {
-          setScale(zoom, true);
-        }
-      },
-      getSnapshot: async () => {
-        return canvasRef.current?.makeImageSnapshotAsync();
-      },
-      toBase64: async (format = ImageFormat.PNG, quality = 100) => {
-        const snapshot = await canvasRef.current?.makeImageSnapshotAsync();
-        return snapshot?.encodeToBase64(format, quality);
-      },
-      toSvg: (width = 1000, height = 1000, bgColor) => {
-        return createSvgFromPaths(paths, {
-          width,
-          height,
-          backgroundColor: bgColor || currentBackgroundColor,
-        });
-      },
-      getPaths: () => paths,
-      setPaths: (newPaths) => {
-        setPaths(newPaths);
-        historyManager.current.push(newPaths);
-      },
-      importSvg: (svg) => {
-        // TODO: Implement SVG import
-        console.warn('SVG import not yet implemented');
-      },
-      setStrokeColor: (color) => {
-        setCurrentStrokeColor(color);
-        strokeColorShared.value = color;
-      },
-      setStrokeWidth: (width) => {
-        setCurrentStrokeWidth(width);
-        strokeWidthShared.value = width;
-      },
-      setStrokeOpacity: (opacity) => {
-        setCurrentStrokeOpacity(opacity);
-      },
-      setBackgroundColor: (color) => {
-        setCurrentBackgroundColor(color);
-      },
-      setEnableHaptics: (enabled) => {
-        setHapticsEnabled(enabled);
-      },
-      setHapticStyle: (style) => {
-        setCurrentHapticStyle(style);
-      },
-      getDrawingState: () => ({
-        paths,
-        currentPath: null,
-        isDrawing: isDrawingRef.current,
-        strokeColor: currentStrokeColor,
-        strokeWidth: currentStrokeWidth,
-        strokeOpacity: currentStrokeOpacity,
+        },
+        redo: (steps = 1) => {
+          for (let i = 0; i < steps; i++) {
+            const nextState = historyManager.current.redo();
+            if (nextState) {
+              setPaths(nextState);
+            } else {
+              break;
+            }
+          }
+          if (hapticsEnabled) {
+            triggerSelection();
+          }
+        },
+        clear: () => {
+          setPaths([]);
+          historyManager.current.push([]);
+          if (hapticsEnabled) {
+            triggerNotification("success");
+          }
+        },
+        reset: () => {
+          setPaths([]);
+          historyManager.current.clear();
+          if (enableZoom) {
+            resetZoom();
+          }
+        },
+        resetZoom: () => {
+          if (enableZoom && resetZoom) {
+            resetZoom();
+          }
+        },
+        setZoom: (zoom: number) => {
+          if (enableZoom && setScale) {
+            setScale(zoom, true);
+          }
+        },
+        getSnapshot: async () => {
+          return canvasRef.current?.makeImageSnapshotAsync();
+        },
+        toBase64: async (format = ImageFormat.PNG, quality = 100) => {
+          const snapshot = await canvasRef.current?.makeImageSnapshotAsync();
+          return snapshot?.encodeToBase64(format, quality);
+        },
+        toSvg: (width = 1000, height = 1000, bgColor) => {
+          return createSvgFromPaths(paths, {
+            width,
+            height,
+            backgroundColor: bgColor || currentBackgroundColor,
+          });
+        },
+        getPaths: () => paths,
+        setPaths: (newPaths) => {
+          setPaths(newPaths);
+          historyManager.current.push(newPaths);
+        },
+        importSvg: (svg) => {
+          // TODO: Implement SVG import
+          console.warn("SVG import not yet implemented");
+        },
+        setStrokeColor: (color) => {
+          setCurrentStrokeColor(color);
+          strokeColorShared.value = color;
+        },
+        setStrokeWidth: (width) => {
+          setCurrentStrokeWidth(width);
+          strokeWidthShared.value = width;
+        },
+        setStrokeOpacity: (opacity) => {
+          setCurrentStrokeOpacity(opacity);
+        },
+        setBackgroundColor: (color) => {
+          setCurrentBackgroundColor(color);
+        },
+        setEnableHaptics: (enabled) => {
+          setHapticsEnabled(enabled);
+        },
+        setHapticStyle: (style) => {
+          setCurrentHapticStyle(style);
+        },
+        getDrawingState: () => ({
+          paths,
+          currentPath: null,
+          isDrawing: isDrawingRef.current,
+          strokeColor: currentStrokeColor,
+          strokeWidth: currentStrokeWidth,
+          strokeOpacity: currentStrokeOpacity,
+        }),
+        isDrawing: () => isDrawingRef.current,
       }),
-      isDrawing: () => isDrawingRef.current,
-    }), [
-      paths,
-      currentStrokeColor,
-      currentStrokeWidth,
-      currentStrokeOpacity,
-      currentBackgroundColor,
-      hapticsEnabled,
-      currentHapticStyle,
-      enableZoom,
-      triggerSelection,
-      triggerNotification,
-      resetZoom,
-    ]);
+      [
+        paths,
+        currentStrokeColor,
+        currentStrokeWidth,
+        currentStrokeOpacity,
+        currentBackgroundColor,
+        hapticsEnabled,
+        currentHapticStyle,
+        enableZoom,
+        triggerSelection,
+        triggerNotification,
+        resetZoom,
+      ]
+    );
 
     // Render paths with transformation
     const renderedPaths = useMemo(() => {
@@ -438,35 +456,38 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
     return (
       <GestureHandlerRootView style={[styles.container, style]}>
         <GestureDetector gesture={composedGesture}>
-          <View 
+          <View
             style={styles.canvasContainer}
             onLayout={(e) => {
               const { width, height } = e.nativeEvent.layout;
               setCanvasSize({ width, height });
             }}
           >
-              <Canvas
-                ref={canvasRef}
-                style={[styles.canvas, { backgroundColor: currentBackgroundColor }]}
-                mode={renderMode}
-              >
-                {/* Apply transformation to all content */}
-                <Group matrix={transformMatrix}>
-                  {/* Rendered paths */}
-                  {renderedPaths}
-                  
-                  {/* Current drawing path */}
-                  <Path
-                    path={currentPathShared}
-                    color={strokeColorShared}
-                    style="fill"
-                    opacity={currentStrokeOpacity}
-                  />
-                </Group>
-                
-                {/* Children (overlays, etc.) */}
-                {children}
-              </Canvas>
+            <Canvas
+              ref={canvasRef}
+              style={[
+                styles.canvas,
+                { backgroundColor: currentBackgroundColor },
+              ]}
+              mode={renderMode}
+            >
+              {/* Apply transformation to all content */}
+              <Group matrix={transformMatrix}>
+                {/* Rendered paths */}
+                {renderedPaths}
+
+                {/* Current drawing path */}
+                <Path
+                  path={currentPathShared}
+                  color={strokeColorShared}
+                  style="fill"
+                  opacity={currentStrokeOpacity}
+                />
+              </Group>
+
+              {/* Children (overlays, etc.) */}
+              {children}
+            </Canvas>
           </View>
         </GestureDetector>
       </GestureHandlerRootView>
@@ -480,7 +501,7 @@ const styles = StyleSheet.create({
   },
   canvasContainer: {
     flex: 1,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   canvas: {
     flex: 1,

@@ -1,13 +1,13 @@
-import getStroke from 'perfect-freehand';
-import type { Point, StrokeOptions } from '../types';
-import { getSvgPathFromStroke } from './svg';
+import getStroke from "perfect-freehand";
+import type { Point, StrokeOptions } from "../types";
+import { getSvgPathFromStroke } from "./svg";
 
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 export function processPoints(points: Point[], options: StrokeOptions): string {
-  if (points.length < 2) return '';
+  if (points.length < 2) return "";
   
   const stroke = getStroke(points, {
     size: options.size || 8,
@@ -85,21 +85,24 @@ export function interpolatePoints(p1: Point, p2: Point, t: number): Point {
     p1[1] + (p2[1] - p1[1]) * t,
     p1[2] !== undefined && p2[2] !== undefined 
       ? p1[2] + (p2[2] - p1[2]) * t 
-      : undefined
-  ].filter(v => v !== undefined) as Point;
+      : undefined,
+  ].filter((v) => v !== undefined) as Point;
 }
 
 export function getVelocity(p1: Point, p2: Point, deltaTime: number): number {
-  'worklet';
+  "worklet";
   const distance = Math.sqrt(
-    Math.pow(p2[0] - p1[0], 2) + 
-    Math.pow(p2[1] - p1[1], 2)
+    Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2)
   );
   return distance / Math.max(deltaTime, 1);
 }
 
-export function velocityToPressure(velocity: number, min: number = 0.2, max: number = 1): number {
-  'worklet';
+export function velocityToPressure(
+  velocity: number,
+  min: number = 0.2,
+  max: number = 1
+): number {
+  "worklet";
   const normalized = Math.min(1, velocity / 100);
-  return max - (normalized * (max - min));
+  return max - normalized * (max - min);
 }

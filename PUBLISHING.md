@@ -71,6 +71,7 @@ npm publish
 ### 5. Verify Publication
 
 Check that your package is live:
+
 - Visit: https://www.npmjs.com/package/expo-perfect-canvas
 - Or run: `npm view expo-perfect-canvas`
 
@@ -106,6 +107,7 @@ npm publish --tag beta
 ### Permission Denied
 
 If you get a permission error, ensure:
+
 - You're logged in: `npm login`
 - You own the package or are a collaborator
 - The package name isn't taken (for first publish)
@@ -113,10 +115,12 @@ If you get a permission error, ensure:
 ### Package Name Taken
 
 If `expo-perfect-canvas` is taken, you can:
+
 1. Use a scoped package: `@hokyjack/expo-perfect-canvas`
 2. Choose a different name
 
 To use a scoped package, update package.json:
+
 ```json
 {
   "name": "@hokyjack/expo-perfect-canvas"
@@ -170,5 +174,6 @@ Note: Unpublishing is discouraged and only allowed within 72 hours of publishing
 ## Support
 
 For issues or questions about the package:
+
 - GitHub Issues: https://github.com/Hokyjack/expo-perfect-canvas/issues
 - npm Package Page: https://www.npmjs.com/package/expo-perfect-canvas

@@ -1,4 +1,4 @@
-import type { PathData } from '../types';
+import type { PathData } from "../types";
 
 export interface HistoryState {
   paths: PathData[];
@@ -17,7 +17,7 @@ export class HistoryManager {
   push(state: PathData[]): void {
     // Remove any states after current index (for redo functionality)
     this.history = this.history.slice(0, this.currentIndex + 1);
-    
+
     // Add new state
     this.history.push({
       paths: JSON.parse(JSON.stringify(state)), // Deep clone

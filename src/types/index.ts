@@ -1,6 +1,6 @@
-import type { SkImage, ImageFormat } from '@shopify/react-native-skia';
-import type { ViewStyle } from 'react-native';
-import type { SharedValue } from 'react-native-reanimated';
+import type { SkImage, ImageFormat } from "@shopify/react-native-skia";
+import type { ViewStyle } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 
 export type Point = [number, number, number?]; // [x, y, pressure?]
 
@@ -48,7 +48,10 @@ export interface PerfectCanvasRef {
   resetZoom: () => void;
   setZoom: (zoom: number) => void;
   getSnapshot: () => Promise<SkImage | undefined>;
-  toBase64: (format?: ImageFormat, quality?: number) => Promise<string | undefined>;
+  toBase64: (
+    format?: ImageFormat,
+    quality?: number
+  ) => Promise<string | undefined>;
   toSvg: (width?: number, height?: number, backgroundColor?: string) => string;
   getPaths: () => PathData[];
   setPaths: (paths: PathData[]) => void;

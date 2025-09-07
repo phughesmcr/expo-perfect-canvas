@@ -27,7 +27,7 @@ Or with yarn:
 ```bash
 yarn add expo-perfect-canvas
 
-# Required peer dependencies  
+# Required peer dependencies
 yarn add @shopify/react-native-skia react-native-gesture-handler react-native-reanimated expo-haptics perfect-freehand
 ```
 
@@ -40,9 +40,9 @@ cd ios && pod install
 ## Basic Usage
 
 ```jsx
-import React, { useRef } from 'react';
-import { View, Button } from 'react-native';
-import { PerfectCanvas } from 'expo-perfect-canvas';
+import React, { useRef } from "react";
+import { View, Button } from "react-native";
+import { PerfectCanvas } from "expo-perfect-canvas";
 
 export default function App() {
   const canvasRef = useRef(null);
@@ -56,10 +56,7 @@ export default function App() {
         enableHaptics={true}
         hapticStyle="light"
       />
-      <Button
-        title="Undo"
-        onPress={() => canvasRef.current?.undo()}
-      />
+      <Button title="Undo" onPress={() => canvasRef.current?.undo()} />
     </View>
   );
 }
@@ -68,18 +65,18 @@ export default function App() {
 ## Advanced Usage
 
 ```jsx
-import React, { useRef, useState } from 'react';
-import { View, Button } from 'react-native';
-import { PerfectCanvas } from 'expo-perfect-canvas';
+import React, { useRef, useState } from "react";
+import { View, Button } from "react-native";
+import { PerfectCanvas } from "expo-perfect-canvas";
 
 export default function AdvancedCanvas() {
   const canvasRef = useRef(null);
-  const [color, setColor] = useState('#000000');
+  const [color, setColor] = useState("#000000");
   const [width, setWidth] = useState(8);
 
   const handleExport = async () => {
     const base64 = await canvasRef.current?.toBase64();
-    console.log('Exported:', base64);
+    console.log("Exported:", base64);
   };
 
   return (
@@ -100,11 +97,11 @@ export default function AdvancedCanvas() {
         zoomRange={[0.5, 3]}
         simplifyPaths={true}
         simplifyTolerance={2}
-        onDrawEnd={(path) => console.log('Path completed:', path)}
+        onDrawEnd={(path) => console.log("Path completed:", path)}
         backgroundColor="#f0f0f0"
       />
-      
-      <View style={{ flexDirection: 'row', padding: 10 }}>
+
+      <View style={{ flexDirection: "row", padding: 10 }}>
         <Button title="Undo" onPress={() => canvasRef.current?.undo()} />
         <Button title="Redo" onPress={() => canvasRef.current?.redo()} />
         <Button title="Clear" onPress={() => canvasRef.current?.clear()} />
@@ -119,41 +116,41 @@ export default function AdvancedCanvas() {
 
 ### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `strokeColor` | `string` | `'black'` | Stroke color |
-| `strokeWidth` | `number` | `8` | Stroke width |
-| `strokeOpacity` | `number` | `1` | Stroke opacity (0-1) |
-| `strokeOptions` | `StrokeOptions` | `{}` | Perfect-freehand options |
-| `enableHaptics` | `boolean` | `true` | Enable haptic feedback |
-| `hapticStyle` | `'light' \| 'medium' \| 'heavy'` | `'light'` | Haptic feedback intensity |
-| `enableZoom` | `boolean` | `false` | Enable pinch zoom |
-| `zoomRange` | `[number, number]` | `[0.5, 3]` | Min and max zoom levels |
-| `simplifyPaths` | `boolean` | `true` | Simplify paths for performance |
-| `simplifyTolerance` | `number` | `1` | Path simplification tolerance |
-| `backgroundColor` | `string` | `'white'` | Canvas background color |
-| `onDrawStart` | `() => void` | - | Called when drawing starts |
-| `onDrawEnd` | `(path: PathData) => void` | - | Called when drawing ends |
+| Prop                | Type                             | Default    | Description                    |
+| ------------------- | -------------------------------- | ---------- | ------------------------------ |
+| `strokeColor`       | `string`                         | `'black'`  | Stroke color                   |
+| `strokeWidth`       | `number`                         | `8`        | Stroke width                   |
+| `strokeOpacity`     | `number`                         | `1`        | Stroke opacity (0-1)           |
+| `strokeOptions`     | `StrokeOptions`                  | `{}`       | Perfect-freehand options       |
+| `enableHaptics`     | `boolean`                        | `true`     | Enable haptic feedback         |
+| `hapticStyle`       | `'light' \| 'medium' \| 'heavy'` | `'light'`  | Haptic feedback intensity      |
+| `enableZoom`        | `boolean`                        | `false`    | Enable pinch zoom              |
+| `zoomRange`         | `[number, number]`               | `[0.5, 3]` | Min and max zoom levels        |
+| `simplifyPaths`     | `boolean`                        | `true`     | Simplify paths for performance |
+| `simplifyTolerance` | `number`                         | `1`        | Path simplification tolerance  |
+| `backgroundColor`   | `string`                         | `'white'`  | Canvas background color        |
+| `onDrawStart`       | `() => void`                     | -          | Called when drawing starts     |
+| `onDrawEnd`         | `(path: PathData) => void`       | -          | Called when drawing ends       |
 
 ### Methods (via ref)
 
-| Method | Description |
-|--------|-------------|
-| `undo(steps?: number)` | Undo last action(s) |
-| `redo(steps?: number)` | Redo action(s) |
-| `clear()` | Clear canvas |
-| `reset()` | Reset canvas and history |
-| `getSnapshot()` | Get image snapshot |
-| `toBase64(format?, quality?)` | Export as base64 |
-| `toSvg(width?, height?, bgColor?)` | Export as SVG |
-| `getPaths()` | Get all paths |
-| `setPaths(paths)` | Set paths |
-| `setStrokeColor(color)` | Change stroke color |
-| `setStrokeWidth(width)` | Change stroke width |
-| `setStrokeOpacity(opacity)` | Change stroke opacity |
-| `setBackgroundColor(color)` | Change canvas background color |
-| `setEnableHaptics(enabled)` | Enable/disable haptic feedback |
-| `setHapticStyle(style)` | Change haptic feedback style |
+| Method                             | Description                    |
+| ---------------------------------- | ------------------------------ |
+| `undo(steps?: number)`             | Undo last action(s)            |
+| `redo(steps?: number)`             | Redo action(s)                 |
+| `clear()`                          | Clear canvas                   |
+| `reset()`                          | Reset canvas and history       |
+| `getSnapshot()`                    | Get image snapshot             |
+| `toBase64(format?, quality?)`      | Export as base64               |
+| `toSvg(width?, height?, bgColor?)` | Export as SVG                  |
+| `getPaths()`                       | Get all paths                  |
+| `setPaths(paths)`                  | Set paths                      |
+| `setStrokeColor(color)`            | Change stroke color            |
+| `setStrokeWidth(width)`            | Change stroke width            |
+| `setStrokeOpacity(opacity)`        | Change stroke opacity          |
+| `setBackgroundColor(color)`        | Change canvas background color |
+| `setEnableHaptics(enabled)`        | Enable/disable haptic feedback |
+| `setHapticStyle(style)`            | Change haptic feedback style   |
 
 ## Performance Tips
 
