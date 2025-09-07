@@ -479,7 +479,7 @@ const PerfectCanvasComponent = forwardRef<PerfectCanvasRef, PerfectCanvasProps>(
                 styles.canvas,
                 { backgroundColor: currentBackgroundColor },
               ]}
-              mode={renderMode}
+              {...(renderMode ? { mode: renderMode } : {})}
             >
               {/* Apply transformation to all content */}
               <Group matrix={transformMatrix}>
